@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 6 (yard graph + A*) complete. See the implementation plan for current phase.
+Phase 7 (equipment allocation) complete. See the implementation plan for current phase.
 
 ## Getting Started
 

@@ -95,7 +95,17 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 6 complete. **Next: Phase 7 — Equipment Allocation.**
+Phase 0 through 7 complete. **Next: Phase 8 — Digital Twin.**
+
+### Phase 7 summary
+
+- `src/optimization/EquipmentAllocationService.ts` — deterministic weighted-scoring allocator per report section 8.1/13 (distance, availability, capacity fit, current workload; priority reweights the factors). No OR-Tools dependency and no LLM involvement — a plain scoring function is sufficient at this scale, as the report allows ("deterministic scoring **or** OR-Tools if appropriate").
+- Hard filters (not scored, simply excluded): equipment type must match, status must be `AVAILABLE`, capacity must be ≥ the container's weight, and the equipment must actually be reachable on the yard graph (reuses Phase 6's `RouteOptimizationService`, so distance-to-container comes from real A* output, not a straight-line guess).
+- Scored factors: `distanceScore` (closer is better, normalized against an illustrative max-yard-traversal distance), `capacityFitScore` (penalizes using an oversized crane/truck for a light container), `workloadScore` (derived from a live count of the equipment's active — `APPROVED`/`DISPATCHED`/`IN_PROGRESS` — tasks, not just its `AVAILABLE`/`BUSY` status flag).
+- Priority reweighting: `HIGH`/`URGENT` requests weight distance at 0.6 (vs. 0.4 normally), trading off capacity-fit precision for faster response — a deliberately simple, transparent rule rather than a tuned model.
+- Every candidate is returned with its full score breakdown (not just the winner), so the UI/policy gate can show *why* one piece of equipment was chosen over the alternatives.
+- Test coverage against the real seeded data: eligibility filtering (type/availability/capacity), ranking order, priority-based reweighting, and a workload test that creates a real active `Task` row and confirms it lowers that equipment's score.
+- `npm run test` (37 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 6 summary
 
