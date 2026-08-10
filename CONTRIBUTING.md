@@ -32,7 +32,8 @@ The architecture (see the implementation plan's "Prototype vs. Report" table) ke
 - `twin/` — digital twin state and validation.
 - `pipeline/` — deterministic composition of search + allocation + route + twin into a single plan. No LLM calls here either; `agents/` calls into this rather than re-wiring the individual services.
 - `policy/` — the confidence/policy gate: a transparent composite score over an already-computed READY plan. Deterministic; no LLM calls.
-- `approval/` — human-in-the-loop workflow: persists a resolved plan as Task + Recommendation, exposes Approve/Reject/Override, writes every action to the audit log. This is the only place that writes Task/Recommendation/AuditEvent rows.
+- `approval/` — human-in-the-loop workflow: persists a resolved plan as Task + Recommendation, exposes Approve/Reject/Override, writes every action to the audit log.
+- `worker/` — carries an APPROVED task through dispatch/start/confirm/complete, the worker-facing side of the same state machine; also writes Task/Worker/Container updates and AuditEvent rows for those transitions.
 
 ## Local Setup
 
