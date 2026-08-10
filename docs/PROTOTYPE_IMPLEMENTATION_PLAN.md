@@ -95,7 +95,17 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 5 complete. **Next: Phase 6 — Yard Graph + A*.**
+Phase 0 through 6 complete. **Next: Phase 7 — Equipment Allocation.**
+
+### Phase 6 summary
+
+- **Yard topology change (retroactive to Phase 3's seed):** the original graph was a pure tree (spine + leaf block entries) with exactly one path between any two points, so a blocked lane could only strand traffic, never trigger a real reroute. Added lateral aisle lanes between adjacent block entries in the same row (8 extra lanes, 15 → 23 total) so Phase 15's "block a lane" demo control has an actual alternate route to demonstrate.
+- `src/domain/constants.ts` — `LANE_SCALE_METERS` factored out of the seed script so the A* heuristic uses the exact same units-to-meters scale as the seeded lane distances (required for the heuristic to stay admissible).
+- `src/optimization/YardGraph.ts` — in-memory graph built from `TOSAdapter.getYardState()`; lanes are undirected (either direction of travel).
+- `src/optimization/astar.ts` — A* with edge cost `distanceMeters * congestionWeight`, blocked lanes excluded, straight-line-distance heuristic. Deterministic; no LLM involvement, per report section 13.
+- `src/optimization/RouteOptimizationService.ts` — wires `TOSAdapter` → `YardGraph` → `findPath`, adds a simple constant-speed ETA calculation.
+- Test coverage: synthetic 4-node cycle graph proves reroute-around-a-blocked-lane and congestion-aware detour selection (picks the physically longer path when the direct lane's weighted cost is higher) precisely; integration tests against the real seeded graph prove the same behavior end-to-end, including a lane-blocking test that mutates the DB and confirms the computed route changes.
+- `npm run test` (33 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 5 summary
 
