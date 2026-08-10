@@ -28,7 +28,7 @@ The architecture (see the implementation plan's "Prototype vs. Report" table) ke
 - `adapters/sensors/` — only place that touches simulated sensor/IoT data. Never bypass `SensorProvider`.
 - `search/` — deterministic container search/matching (cache-first lookup, fuzzy match, confidence scoring). No LLM calls here.
 - `optimization/` — deterministic algorithms only (A*, scoring, forecasting). No LLM calls here.
-- `agents/` — Claude orchestration, disambiguation, explanation only. No numeric computation here — call into `search/`/`optimization/` instead.
+- `agents/` — LLM orchestration, disambiguation, explanation only (Gemini in this prototype — see the Phase 10 deviation note in the implementation plan). No numeric computation here — call into `search/`/`optimization/` instead. Depend on the `GenerativeModelClient` interface, not `@google/genai` directly, so tests can inject a fake and a provider swap only touches `GeminiClient.ts`.
 - `twin/` — digital twin state and validation.
 - `pipeline/` — deterministic composition of search + allocation + route + twin into a single plan. No LLM calls here either; `agents/` calls into this rather than re-wiring the individual services.
 

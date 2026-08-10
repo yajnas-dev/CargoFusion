@@ -9,13 +9,17 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 9 (retrieval planning pipeline) complete. See the implementation plan for current phase.
+Phase 10 (agent orchestration) complete. See the implementation plan for current phase.
+
+Note: the agent layer uses Gemini, not Claude — a user-directed deviation from the source report; see the implementation plan's Phase 10 section for why.
 
 ## Getting Started
 
 ```bash
 npm install          # also runs `prisma generate` via postinstall
 cp .env.example .env
+# then add GEMINI_API_KEY to .env — required from Phase 10 (agent layer) onward;
+# get one at https://aistudio.google.com/apikey
 npm run db:migrate    # creates dev.db (gitignored) from prisma/migrations
 npm run db:seed        # populates ~1,200 containers, 110 equipment, yard graph, 40 workers
 npm run dev             # http://localhost:3000
@@ -44,7 +48,7 @@ src/
   adapters/sensors/     # SensorProvider interface + simulated IoT events
   search/                # Deterministic container search: cache-first lookup, fuzzy match, confidence
   optimization/         # Deterministic algorithms only: A* route, equipment scoring, forecasting
-  agents/                # Claude orchestration: interpretation, disambiguation, explanation
+  agents/                # LLM orchestration (Gemini): interpretation, disambiguation, explanation
   twin/                   # Digital twin: plan conflict validation against live state
   pipeline/               # Composes search + allocation + route + twin into one plan
   events/                # In-process EventBus (Kafka stand-in)

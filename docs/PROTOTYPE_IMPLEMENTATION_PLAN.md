@@ -22,7 +22,7 @@ Source of truth: `Autonomous-Container-Search-Assistant-Engineering-Report-Combi
 | PostgreSQL + Redis + TimescaleDB | **SQLite** (via `better-sqlite3` or Prisma) as the single local datastore, with an in-memory hot-path map standing in for Redis | Spec explicitly allows skipping Redis/Postgres if not needed; SQLite keeps the prototype zero-install |
 | OR-Tools (Python constraint solver) | Deterministic **weighted scoring function** in TS for equipment allocation (distance, availability, workload, priority) | OR-Tools is a real dependency-management burden for a prototype; report itself allows "deterministic scoring **or** OR-Tools if appropriate" |
 | A* / Dijkstra | Implemented directly in TS over the synthetic yard graph | Matches spec exactly, no simplification needed |
-| Claude API | Anthropic SDK, used only for: NL request interpretation, ambiguity/escalation judgment, and explanation generation | Matches spec exactly — Claude never computes routes/scores |
+| Claude API | **Deviation (user-directed, Phase 10): Gemini API** (`@google/genai`, `gemini-flash-latest`) instead of Claude, used only for: NL request interpretation, ambiguity/escalation judgment, and explanation generation | The role matches spec exactly — the model never computes routes/scores — but the provider does not. See the Phase 10 deviation note below for why and how to swap back. |
 | Real RFID/GPS/crane hardware | `SimulatedSensorProvider` emitting synthetic events on a timer, behind a `SensorProvider` interface | Spec requirement |
 | Real TOS (Navis/Tideworks) | `MockTOSAdapter` implementing a `TOSAdapter` interface | Spec requirement |
 | Kubernetes-managed WebSocket fanout | Socket.IO (or native WS) server co-located in the Next.js app | Enough for a local multi-tab demo (dashboard + worker view) |
@@ -95,7 +95,25 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 9 complete. **Next: Phase 10 — Claude Agent Orchestration.**
+Phase 0 through 10 complete. **Next: Phase 11 — Confidence / Policy Gate.**
+
+### Deviation: Gemini instead of Claude for the agent layer
+
+The report specifies Claude specifically for orchestration/disambiguation/explanation (sections 7.3, 8, 13), citing its multi-step tool-use reasoning. **The user explicitly directed a switch to Google's Gemini API instead**, after confirming they wanted this deviation from the report's spec (rather than holding Phase 10 until an Anthropic key was available). This is recorded here as a deliberate, requested departure from the source-of-truth architecture, not an oversight.
+
+Practical notes from making the switch:
+- `gemini-2.5-flash` (the model named in the report-era API listing) returns `404 ... no longer available to new users`; the prototype uses `gemini-flash-latest` instead.
+- The agent layer depends on a small `GenerativeModelClient` interface (`generateJSON`/`generateText`), not `@google/genai` directly — implemented by `GeminiClient`. A future swap to Claude (or back) only touches that one file.
+
+### Phase 10 summary
+
+- `src/agents/GeminiClient.ts` — `GenerativeModelClient` interface + Gemini implementation using structured JSON output (`responseSchema`) for interpretation and plain text for explanation.
+- `src/agents/RequestInterpreter.ts` — turns a natural-language request into `{ containerQuery, priority, requiredEquipmentType?, isAmbiguous, clarifyingQuestion? }` (report section 8's example: "container = MSKU1234567, objective = minimize retrieval time, priority = high"). The model only decides *what* to look up — it never computes anything.
+- `src/agents/PlanExplainer.ts` — narrates an already-computed `RetrievalPlanResult` (container, selected equipment + score factors, route, twin validation) into 2-4 plain-language sentences for a supervisor. Every number in the prompt comes from Phases 5-9; the model doesn't compute or invent any of them.
+- `src/agents/RetrievalAgent.ts` — orchestrates interpret → (short-circuit to a clarifying question if ambiguous, else) → `RetrievalPlanningPipeline.plan()` → explain. This is a two-structured-call design rather than a full autonomous multi-turn tool-calling loop — a deliberate prototype simplification; the report's "agent decides what to compute" principle still holds since the pipeline call is deterministic and unconditional once a container query is resolved.
+- Test coverage is two-tiered: fast deterministic unit tests inject a `FakeModel` implementing `GenerativeModelClient` (no network) to verify orchestration wiring (ambiguity short-circuit skips the pipeline entirely; a resolved request runs the real Phase 9 pipeline against the seeded DB and reaches the explainer). A `describe.runIf(!!process.env.GEMINI_API_KEY)` block adds one genuine live-API integration test — it ran for real during this phase (confirmed via verbose reporter, ~8s wall time) and passed end-to-end: real Gemini interpretation of "retrieve X as soon as possible", real pipeline execution, real explanation text back from Gemini.
+- `.env.example` updated: `GEMINI_API_KEY` replaces the placeholder `ANTHROPIC_API_KEY` line, with the deviation noted inline.
+- `npm run test` (55 passing, including the live integration test since a key is configured), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 9 summary
 
