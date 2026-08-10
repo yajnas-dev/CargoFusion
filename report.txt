@@ -1,0 +1,662 @@
+﻿
+
+AUTONOMOUS CONTAINER SEARCH ASSISTANT
+
+A Proposed AI Intelligence Layer for Container Retrieval Planning, Deployed Above an Existing Terminal Operating System
+
+Engineering Report & Startup Whitepaper – Proposed Architecture and Prototype Plan
+
+6 August 2026
+
+
+
+Table of Contents
+
+1. Abstract
+
+2. Introduction
+
+3. Problem Statement
+
+4. Objectives
+
+5. System Architecture
+
+6. Terminal Operating System (TOS) Integration
+
+7. Technology Stack
+
+8. Agentic AI Layer
+
+9. Data Management
+
+10. IoT and Edge Integration
+
+11. Event-Driven Communication
+
+12. Digital Twin
+
+13. AI Optimization Engines and Algorithm Selection
+
+14. Security and Access Control
+
+15. Monitoring and Observability
+
+16. Client Applications and User Roles
+
+17. Commercial Positioning
+
+18. Implementation Roadmap
+
+19. Expected Outcomes, Limitations and Risks
+
+20. Conclusion and Future Scope
+
+Appendix - Requirements, Comparison and Cost
+
+
+
+1. Abstract
+
+This report proposes the Autonomous Container Search Assistant (ACSA): an AI intelligence layer to be deployed above an existing Terminal Operating System (TOS), which would advise on optimal container retrieval planning. The proposed architecture would read relevant container, equipment, and yard data from an existing TOS (such as Navis N4, Tideworks, or another commercial system), apply a mix of deterministic optimization and LLM-based orchestration to choose candidate container retrieval records, equipment, and route options, and recommend these to a human operator for approval prior to execution by the TOS.
+
+This report concerns a proposed prototype and target architecture - not a system already deployed and validated in production by a terminal. As such, it takes the form of an engineering design document and startup whitepaper: the described architecture, technology choices, and roadmap concern what the prototype should build and demonstrate, beginning with a limited pilot at a single terminal zone before claiming terminal-wide or multi-port readiness. The performance targets (retrieval time, equipment use) named in this document are engineering goals to be validated during a pilot, not already achieved results.
+
+
+2. Introduction
+
+A terminal handling over 100,000 containers per year will have its cargo stored in stacks within yard blocks and moved between quay, yard, and gate by crane and truck. Most such terminals of this size already have a commercial TOS (Terminal Operating System) deployed: this is the authoritative system of record for container positions, equipment status, and yard and stowage planning. What such a system does not natively address is dynamic optimization of traffic and retrieval priorities based on current congestion and the relative value of different container retrieval goals. These are still mostly addressed by human yard planners, who have to make often time-critical judgements as to which crane or truck should be sent where, even if the TOS has up-to-date information on each individual container's location, equipment status, and yard storage.
+
+The Autonomous Container Search Assistant proposes to take a different approach: to read a (primarily) read-mostly cache of container and equipment data from an existing TOS, enrich it with IoT checkpoint and event-stream data, and apply a set of cooperating software agents to recommend one or more retrieval options (route + equipment) for a given request. The value proposition is not one of merely another information repository (as the TOS already serves that role) but one of cooperative, incremental planning assistance with existing enterprise systems.
+
+
+3. Problem Statement
+
+For a terminal with a substantial volume of containers, a TOS alone does not address four interrelated issues which contribute to delays, equipment unutilization, and increased costs during retrieval.
+
+Even if a TOS has accurate records on individual container positions, existing industry practices have problems with
+
+3.1 Manual coordination: radio coordination of yard planners, crane operators, and truck drivers can result in equipment being driven or cranes being raised unnecessarily during shift transitions, with no shared view of what has already been retrieved.
+
+3.2 Equipment allocation: crane and truck resources are often allocated manually by yard planners, using primarily static rosters and heuristics, with no automatic prioritization based on distance or value.
+
+3.3 Retrieval latency: retrieving a non-top-of-stack container requires non-trivial repositioning even if the TOS has accurate records of its location.
+
+3.4 Congestion: traffic lanes and crane positions can become unexpectedly congested during peak vessel arrival or departure periods, without adequate predictive modeling to reroute traffic.
+
+These issues are problems of coordination and planning, not of information availability: this is why they are not solved by simply having richer information in the TOS. Rather, this is why the value proposition for the recommended solution concerns adding a layer of cooperative, recommendation-based planning intelligence above the TOS, rather than within it.
+
+
+4. Objectives
+
+Primary objective: design an AI-assisted recommendation layer that would read information from an existing TOS and other sources to propose container retrieval plans (route + equipment) for human operator approval, reducing planning overhead while retaining execution responsibility with the port operator.
+
+
+4.1 Functional
+
+
+Accept a retrieval request and locate the requested container with a local cache of TOS data, with fallback to direct querying of the TOS on cache miss
+
+
+Recommend a retrieval plan (route + equipment) using a mix of optimization algorithms, cross-checking against the digital twin's known state for conflicts
+
+
+Present the recommendation to a human operator, with configurable automation policies for routine, high-confidence requests and manual overrides
+
+
+Track the status of a dispatched retrieval from initiation through confirmation, updating relevant dashboards accordingly
+
+
+4.2 Technical
+
+
+Sub-second lookup performance from the local cache, with TOS-level queries expected to be significantly slower but used only as a fallback for cache misses at scale
+
+
+Every plan is checked against the digital twin's last-known state as a conflict check before being recommended to a human operator for approval
+
+
+Backend services and the agentic AI layer are developed with scalability in mind, with no monolithic components
+
+
+4.3 Business
+
+
+Demonstrate, in a single-terminal pilot, reduced planning time per retrieval compared to a manual process before automation, without requiring the terminal to move away from its existing TOS
+
+
+Collect a dataset of recommendation records for future analysis as a differentiating factor and long-term asset
+
+
+
+5. System Architecture
+
+The proposed architecture is organized in layers from human users and client applications through the API, backend services (with a synced cache of TOS data), agentic AI, deterministic optimization engines, event streaming, data storage, the digital twin, and IoT ingestion with monitoring across layers. It is deliberately decoupled to allow independent scaling of user interfaces, business logic, autonomous reasoning, and digital twinning of physical assets.
+
+Figure 5.1 – Proposed system architecture and data flow, numbered per request/response flow from a user initiating a request (1) through task execution and status update (13). The existing TOS is presented as an external system which the Core Backend Services layer has read access to.
+
+The numbered items describe a request flowing through the Load Balancer, Gateway, and Authentication (1-3) to the Agent Orchestrator, which in turn directs it to the Search Agent (4-5); the Decision Agent evaluates congestion forecasts and search results (6) and then directs route and equipment allocation to the Deterministic Optimization Engines via the Route and Equipment agents (7-8); the plan is validated against the Digital Twin and, with a recommendation, is then sent to the Core Backend Services layer (9); the Event Bus then notifies the worker's mobile application which acknowledges the task (10-11); finally, the completion is registered, and the status is updated for all dashboards (12-13). The step of supervisor approval referenced in section 8 falls between items 9 and 10 and is detailed in figures 13.1-13.2.
+
+
+5.1 Layer Responsibilities
+Layer
+Responsibility
+Client Applications
+Web Dashboard, Mobile Worker App, Admin Portal
+API Layer
+Load balancing, routing, authentication/authorization
+Core Backend Services
+Domain services with synced cache of container/equipment data (TOS is source of truth), route, notification, twin, and analytics data
+Agentic AI Layer
+Goal-driven agents that plan retrieval end-to-end with ability to escalate to humans
+AI / Optimization Engines
+Deterministic algorithms and statistical models (path finding, scheduling, congestion forecasting) which are often invoked by agents
+Event Layer
+Kafka/RabbitMQ and WebSocket server
+Data Layer
+PostgreSQL, Redis, time series database, object storage
+Digital Twin
+Reconciled view of yard, containers, cranes, trucks, workers with best known state synced from TOS and IoT events
+IoT / Edge Layer
+RFID checkpoint readers, GPS on trucks/mobile equipment, crane sensors, QR check-ins by workers feeding the event bus
+
+
+
+
+6. TOS Integration
+
+A terminal operating at the scale of 100,000+ containers will almost certainly be using a commercial TOS (Navis N4, Tideworks, or another proprietary platform) for berth scheduling, yard/stowage planning, and equipment records. It would be commercially irrational for such a terminal to adopt ACSA as a replacement for their existing system of record (SOR). The proposed architecture deliberately leaves ACSA as an intelligence layer that is integrated with the TOS rather than the other way around.
+
+
+6.1 Architecture Overview
+
+The TOS Integration Adapter is the only component of the proposed architecture that interacts with the legacy TOS. It is designed to be largely read-only – it will periodically sync container records, equipment status, and yard/stowage planning data from whichever APIs or database views are available from the existing TOS (REST endpoints, EDI feeds, or direct database queries depending on the compatibility options offered by a specific vendor). It will also consume event streams from the TOS if they are available (gate moves, crane moves). The adapter will only ever write a recommendation to the TOS – it will not attempt to write to the TOS's database directly. Physical moves of equipment or changes to container status will be recorded in the TOS as they always have been by virtue of occurring at the terminal.
+
+Figure 6.1 – Proposed integration architecture: the adapter reads information from the existing TOS (left) and writes recommendations back to it (right); actual execution of moves is captured in the TOS via the terminal's existing audit trails
+
+
+6.2 Commercial Implications
+
+
+No forklift upgrade necessary – a terminal can pilot the solution with a read-only or limited-write ETL process from their existing TOS with no changes to gate/crane operations
+
+
+Reduced risk of adoption – the terminal's SOR and audit trails remain untouched; ACSA is an enhancement layer
+
+
+Vendor neutrality – the adapter pattern allows for compatibility with multiple TOS platforms (Navis N4, Tideworks, etc) rather than building proprietary tooling for a single vendor
+
+
+6.3 Data Consumption vs. Ownership
+Data
+Owned By
+How ACSA Uses It
+Container records (position, status, customs)
+Existing TOS (SOR)
+Synced into a local read cache; never written to by ACSA
+Equipment records (crane status)
+Existing TOS (SOR)
+Synced into a local read cache consumed by Equipment Allocation Agent
+Yard / stowage plan
+Existing TOS (SOR)
+Used to populate the Digital Twin
+Route plans, retrieval task history
+ACSA (local)
+Written to by ACSA; not part of TOS data model
+RFID / GPS checkpoint events
+ACSA (local, from IoT edge devices)
+Used to update the Digital Twin between TOS syncs
+
+
+
+7. Technology Stack
+
+Selection criteria throughout: proven reliability at terminal-scale throughput, ecosystem around the AI/agentic workloads critical to this solution, ease of integration with existing TOS APIs, compatibility with a phased rollout from a single terminal pilot.
+
+
+7.1 Application Layer
+Technology
+Used For
+Why
+Next.js (React, TypeScript)
+Web dashboard, admin portal
+Fast rendering of dashboard; shared types with backend
+React Native
+Mobile worker app
+Single codebase for handheld scanning devices
+Node.js (NestJS, TypeScript)
+Core backend microservices
+High-performance async I/O for API layer
+Python (FastAPI)
+AI/optimization engines, agent runtime
+Best-in-class ML and LLM tooling
+
+
+7.2 Data Layer
+Technology
+Used For
+Why
+PostgreSQL
+Local system of record for ACSA-owned data; synced cache for containers/equipment
+ACID guarantees for real physical/labor commitments; TOS retains authority over master data for containers/equipment
+Redis
+Hot-path cache; agent short-term memory
+Sub-millisecond container lookups at 100k+ scale
+TimescaleDB
+Sensor telemetry, historical congestion data
+Time-series database built on PostgreSQL
+S3-compatible object storage
+Images, documents, twin snapshots
+Cost-effective storage of unstructured data
+
+
+7.3 AI, Agents, Integration and Messaging
+Technology
+Used For
+Why
+TOS integration adapter (REST/EDI client)
+Syncing container/equipment/yard data from existing TOS
+Purpose-built mediation layer; avoids hard-coding to one vendor's schema
+Claude API (LLM)
+Agent orchestration, disambiguation, and plan explanation – NOT route/schedule computation
+Superb multi-step tool-use reasoning; deterministic algorithms handle numerical optimization
+Google OR-Tools
+Scheduling and equipment allocation (deterministic solver)
+Production-grade constraint and linear solvers; used for allocating resources rather than planning
+A* / Dijkstra implementation (custom or lib)
+Route computation over yard graph (deterministic)
+Well-understood pathfinding algorithms; not exposed to the LLM
+Apache Kafka
+Event backbone
+Durable and replayable; handles high message throughput for IoT events
+WebSocket (Socket.IO)
+Real-time push to dashboards/mobile
+Low-latency connection for UI updates
+
+
+7.4 Infrastructure
+Technology
+Used For
+Why
+Kubernetes (managed)
+Microservice orchestration
+Scaling and self-healing at terminal scale
+Terraform + GitHub Actions
+Infrastructure-as-code, CI/CD
+Predictable environments; GitHub Actions provide good release cadence for small team
+Prometheus + Grafana, OpenTelemetry
+Metrics and distributed tracing
+Debugging of multi-service, multi-agent request flows
+
+
+
+
+8. Agentic AI Layer
+
+A crucial design decision about the proposed agent-based architecture is that it will handle orchestration, disambiguation, and explanation, whereas numerical computation (pathfinding, scheduling, forecasting) will be done by pluggable deterministic modules. In other words, the agent will decide what to compute, not how to compute it. An LLM-based planner is not used for route computation, equipment allocation, or congestion forecasting, since these have well-established deterministic algorithms. When a human-comprehensible plan needs to be generated for the workers, it is synthesized by the agent based on these computations. The LLM-based agent is used to choose which options to pursue, to request additional information or human approval when the confidence is low, and to explain the plan.
+
+Figure 8.1 - Proposed agent responsibilities, delegation, tool use, and shared memory. Nodes in red represent agents; nodes in blue represent engines.
+
+
+8.1 Agent Responsibilities
+Agent
+Purpose
+Key Inputs → Outputs
+Primary Tools
+Reasoning Logic
+Orchestrator
+Decompose an incoming goal, delegate to specialized agents, arbitrate failures
+Validated request → committed plan or escalation
+Agent registry, task-graph state machine
+Maps request type to a delegation sequence; re-orders on low-confidence agent reports. Does not itself compute a route or schedule.
+Container Search
+Locate the target container using synced TOS data
+Container ID/query → ranked candidates + confidence
+Redis cache, PostgreSQL sync cache, fuzzy-match
+Cache-first lookup against the TOS-synced cache; on miss, triggers a direct TOS query and disambiguates multiple matches by context.
+Congestion Prediction
+Forecast 15-90 min yard/lane congestion
+Live + historical telemetry → congestion forecast
+Statistical time-series forecasting model (deterministic, not LLM-based)
+A trained forecasting model over recent sensor windows plus known scheduled vessel operations; the agent's role is to request and interpret the forecast, not compute it.
+Decision
+Select among candidate plans; decide whether to auto-approve or route to a human
+Candidates, forecast, route, allocation → proposed plan + confidence
+Digital Twin feasibility check
+Ranks candidate plans by time/cost/priority using simple weighted scoring; checks the top plan against the twin's last-known state; routes low-confidence or policy-flagged cases to a supervisor rather than auto-dispatching.
+Route Optimization
+Request a path for the assigned equipment from the pathfinding engine
+Origin, destination, yard graph → optimized path
+A* Pathfinding Engine (deterministic)
+Invokes A* over a congestion-weighted yard graph; the agent's reasoning is limited to which constraints to pass in, not the path computation itself.
+Equipment Allocation
+Request an optimal crane/truck assignment from the scheduling engine
+Location, priority, equipment status → assignment
+Scheduling Engine (OR-Tools, deterministic)
+Formulates the allocation as a constraint-satisfaction problem for the solver; sanity-checks the returned assignment against live equipment status from the TOS-synced cache.
+Monitoring
+Watch reasoning/tool-call health of all agents
+Execution traces → anomaly flags/escalation
+Distributed tracing, anomaly rules
+Compares current agent behavior to learned baselines; escalates rather than intervening directly.
+Notification
+Route dispatches and alerts to the right channel
+Plan/status/alerts → routed notifications
+Notification Service, WebSocket server
+Role-based routing (workers get dispatches; supervisors get exceptions and approval requests) to avoid alert fatigue.
+
+
+
+Communication pattern: agents use direct internal calls for time-critical delegation within a single request (Orchestrator to Search Agent), and event-bus topics for background, non-time-critical updates (Congestion Prediction running continuously across requests). Every proposed plan passes through the confidence/policy check shown in Fig 13.1-2 before execution; a supervisor can always override any recommendation.
+
+Figure 8.2 - End-to-end retrieval sequence, a single request traced through all agents to a proposed (not yet executed) plan.
+
+
+
+9. Data Management
+
+The existing TOS continues to be the source of truth for master data on containers and equipment. Within the AGENT system, PostgreSQL acts as a cache (with periodic refreshes from the TOS and on relevant TOS events) for TOS data and holds ACSA's own data: retrieval tasks, route plans, and recommendation history. This is intentional, so as to not turn ACSA into another source of truth for the TOS data that already exists, while still allowing for ACSA to have up-to-date copies of the information for fast analytical or agentic operations. Redis is used for fast (sub-millisecond) lookups at scale and acts as the working memory for the agentic layer. A timeseries database is used to store telemetry and congestion data from IoT checkpoints. Blob storage is used for images, documents, or twin snapshots, at a low cost per gigabyte.
+
+Figure 9.1 – Core operational schema. The container and Equipment tables are explicitly caches; the TOS is the source of truth for those.
+
+Local cache reconciliation with TOS data is done on-demand for any queries involving data with a non-static value (the local copy of the data is always overwritten by the latest TOS values), while data with a static value is not reconciled. This presents a simple eventual consistency model, which does not endeavor to implement more complicated consensus algorithms for the relatively smaller scale of this application.
+
+
+10. IoT and Edge
+
+The IoT layer is deliberately scoped to supporting position reads of containers and equipment between TOS syncs, rather than enabling full-time tracking of every asset. This cuts GPS usage to only vehicles (which are already tracked in terms of their movement across the yard) and RFID checkpoints (which confirm the presence of a particular container or vehicle at a particular point).
+Sensor
+Purpose
+Update Interval
+RFID (UHF)
+Identification of containers and vehicles at gate and yard chokepoints
+Only when passing a checkpoint
+QR codes
+Manual confirmation of a retrieval task by a worker when using the Mobile Worker App
+On-scanning
+GPS/GNSS
+Outdoor positioning of vehicles
+Not applicable for containers
+Crane Sensors
+Load/position information for equipment allocation
+Continuous, for the equipment itself
+Truck Telemetry
+Speed, fuel level, and battery health for routing and analytics
+Continuous, for the vehicles themselves
+
+
+
+Figure 10.1 IoT and edge data flow from sensors to the digital twin.
+
+
+11. Event Bus
+
+Kafka is proposed as the message bus which would decouple all producers (backend services, IoT gateway, agents, TOS Integration Adapter) from all consumers (Notification, Analytics, Monitoring), while also avoiding situations where slow consumers block faster producers, for example, in the case of task publishing. A web socket server is deployed to bridge the event bus with browser/mobile clients.
+
+Figure 11.1 – Producers, the Kafka/RabbitMQ event bus, and consumers.
+
+
+12. Digital Twin
+
+The concept of a "digital twin" in this design is limited to a reconciled view of the yard state – the positions of containers (as per TOS data reconciled with RFID checkpoint data), equipment state, and a static (but informative) overlay of the yard's road/lane topology with dynamically updated congestion data from sensors. This is not a high-resolution recreation of the yard state and physics, as the fidelity of the position of any particular container is only as high as the TOS data or the last RFID checkpoint. The digital twin is used for validating plans (e.g., checking if there are any conflicting tasks, such as a route through a closed lane or simultaneous use of the same equipment) before actually attempting to realize them in the yard. Before accepting any plan, the agent responsible for it performs a feasibility check using the current digital-twin state.
+
+Figure 12.1 – Digital twin synchronization. The state of the TOS and checkpoint events are reconciled into the best-known yard position, used to validate a plan before attempting to commit it.
+
+
+13. AI Optimization Engines
+
+These are the deterministic and statistical algorithms used by the agents, which constitute the core computational logic of the system. Route optimization uses a search algorithm to find the most efficient path between points; equipment allocation uses a generic optimization engine to find the best assignment of equipment to tasks given their constraints and preferences; congestion prediction is a statistical time-series algorithm. Algorithms have been selected wherever a well-established method (compared to an LLM) exists and is applicable (see the note in 13.5).
+Algorithm
+Used For
+Why this and not an LLM
+A* Search (admissible heuristic)
+Route optimization between points
+Fast and deterministic on yard graphs with congestion weights; an LLM would be too slow and not obviously admissible for this task.
+Dijkstra's Algorithm
+Distance estimation with multiple targets
+Simpler than A*, with no available heuristic
+Constraint / Linear solver (OR-Tools)
+Equipment allocation / Scheduling
+Has a known optimal or approximate solution; faster and more reliable than an LLM for combinatorial optimization
+Statistical time-series forecasting
+Congestion prediction / ETA estimation
+Acts as the baseline for more involved forecasting; well-known and reliable algorithm for the task
+
+
+
+Reinforcement learning methods are deliberately left for later stages (see Section 20), as training an agent to optimize yard operations would require much data, which the prototype does not have yet. Moreover, the listed algorithms are often competitive with an LLM-based solution (see the note in 13.5).
+
+Figure 13.1 – Proposed decision pipeline, part 1: request through digital-twin validation. Deterministic engines in blue; LLM agents in red.
+
+Figure 13.2 – Proposed decision pipeline, part 2: confidence/policy gate, supervisor approval, and dispatch.
+
+
+
+14. Security and Access Control
+
+The proposed authentication design issues short-lived JWTs with role and scope claims after credentials validation, with multi-factor authentication required for Supervisor and Admin roles due to their ability to approve or override potential recommendations. All requests are subjected to role-based access control prior to being serviced by a scoped service, with all access decisions, both permitted and denied, logged to an immutable audit log. The TOS Integration Adapter is designed to have a narrow scope of access since it is the only component with access to the existing TOS, and thus it employs a separate service credential set to limit exposure.
+
+Figure 14.1 – Authentication and authorization flow, including the audit logging path.
+
+
+15. Monitoring and Observability
+
+Backend services and agents are designed to expose logs and metrics to a central observability pipeline capturing both generic infrastructure metrics (latency, throughput, and error rate) and domain-specific agent metrics that would not be available in an off-the-shelf system: plan confidence score, rate of supervisor override, and tool-call success rate. We propose a Monitoring Agent specifically tasked with observing for reasoning loop conditions and reduced plan confidence trends and escalating to a human supervisor to break the loop rather than persisting with failed reasoning. The agent's logic is necessarily dependent on operational context and is best tuned on the pilot data.
+
+Figure 15.1 – Monitoring sources, collection, alerting, and escalation.
+
+
+16. Client Applications and User Roles
+Role
+Interface
+Key Interactions
+Port Operator
+Web Dashboard
+Issue retrieval requests; monitor yard map and equipment status; approve recommendations.
+Yard Worker
+Mobile Worker App
+Receive recommended retrieval tasks; navigate to the target container; scan to confirm retrieval completion
+Supervisor
+Web Dashboard, Admin Portal
+Approve recommendations; override planning for low-confidence scenarios and exceptions; monitor SLA/congestion performance; review analytics
+Customer Service
+Web Dashboard (read)
+Monitor container status for customer inquiries; initiate high-priority retrieval requests
+
+
+
+The Worker App is deliberately minimal in scope with a single active task and turn-by-turn navigation to avoid cognitive load on the worker. The Admin Portal (user and role management, agent configuration and thresholds, audit log review) is separated from the main Dashboard to reduce the blast radius of misconfigurations. In all cases, the interface is designed around the same principle: the system recommends, the user with the appropriate role disposes.
+
+Figure 16.1 – Use-case diagram for the four user roles.
+
+
+17. Commercial Positioning
+
+
+17.1 Why a Terminal Would Want This
+
+The commercial argument is centered around the integration scenario described in section 6 – a terminal does not need to adopt a wholly new TOS, retrain its workforce on an entirely new system of record, or undertake the business risk of migrating its container and equipment data into a new database. Our intention is for ACSA to be installed as an add-on recommendation layer on top of whatever TOS the terminal already uses, with the option for a terminal to adopt our recommendation layer on a limited scope (e.g., per yard zone) with the existing TOS remaining in use in other areas. It reduces the commercial and operational risk compared to a solution proposing a wholesale replacement of a terminal's IT systems.
+
+
+17.2 Cost and Time Value
+
+
+Reduced planning effort: automating the candidate generation-ranking process reduces the time a planner must spend on iterative candidate ranking, letting them focus on exceptional cases with higher planning priority.
+
+
+Reduced equipment idle time: congestion-aware route optimization reduces unnecessary equipment movement and waiting time compared to standard planner heuristics.
+
+
+Reduced training time for new planners: a recommendation system that surfaces ranked, justified suggestions reduces the experience requirement for effective retrieval planning compared to relying on intuition alone
+
+
+17.3 Differentiation from the Competition
+
+Commercial TOS software such as Navis N4 and Tideworks are expected to continue to serve as a port's system of record – we do not intend to position ACSA as a direct competitor to their primary offerings. The differentiation from the competition is narrower: while ACSA is a general-purpose autonomous agent framework, it is being proposed as a narrow-use recommendation layer for the retrieval-planning judgment task, a role no TOS vendor has committed to filling. This has the advantage of being much more focused on a specific problem and reducing the sales challenge to convincing a terminal operator that ACSA is a viable replacement for their entire planning system of record. Instead, the commercial proposition is positioned as an enhancement to the existing system, which should be considerably easier to sell, particularly for an early-stage company without an established enterprise sales force.
+
+
+18. Implementation Roadmap
+Phase
+Duration
+Key Deliverables
+1 – MVP + TOS Read Integration
+Months 1-2
+TOS Integration Adapter (read), Container/Equipment cache, API Gateway, Auth, Web Dashboard with manual search
+2 – AI Integration
+Months 3-4
+Orchestrator and all task agents online, Pathfinding and OR-Tools scheduling engines deployed, Recommendations available but require manual dispatch
+3 – Digital Twin
+Months 5-6
+Yard state model synchronized via TOS integration + checkpoint events, Feasibility-checked recommendations, Dashboard visualization
+4 – IoT Checkpoint Integration
+Months 7-8
+RFID/GPS/crane sensors deployed and integrated with edge gateway at one pilot zone, Twin synchronization via IoT checkpoints
+5 – Pilot Deployment
+Months 9-10
+Single-zone pilot deployment running in parallel with existing TOS, Planning-time analytics baseline versus manual planning, Supervisor approval workflow optimized based on feedback
+
+
+
+19. Expected Outcomes, Limitations and Risks
+
+
+19.1 Target Metrics (Pilot Goals, Not Measured Results)
+
+The numbers below represent aspirational targets for the prototype: expected improvements for a pilot that would demonstrate value on a live terminal. These are not production-ready performance benchmarks: the metrics below were only selected as reasonable goals given most shippers' manual processes as a baseline for comparison.
+Metric
+Manual Baseline
+Pilot Goal
+Planning time per retrieval task
+5-15 mins of planner's time spent evaluating options
+Reduced through auto-ranking of candidates; depends on pilot
+Equipment idle time
+Varies widely, but often 30-40% of total operating time
+Reduced through congestion-aware allocation; also depends on pilot
+Container location lookup (cached)
+Seconds-Minutes, depending on whether TOS is queried
+Sub-second response from local cache; depends on freshness of cache
+
+
+
+
+19.2 Limitations
+
+
+The accuracy of the digital-twin model depends on the frequency of TOS synchronization and the number of IoT checkpoints; early in deployment, few checkpoints means reduced confidence in the value of the pilot.
+
+
+The orchestration logic based on LLMs may sometimes fail to correctly interpret ambiguous input, or make a recommendation with lower confidence than the piloters expect; thus, every recommendation must be routed through a confidence/policy gate before execution.
+
+
+Reinforcement learning or other adaptive algorithms are not part of the initial prototype and would require substantial data from the pilot before they could improve upon the deterministic rules used at launch.
+
+
+19.3 Risk Analysis
+Category
+Risk
+Mitigation
+Integration
+The target terminal's TOS version has limited or unconventional APIs for external access.
+The pilot will only be proposed for terminals that have published APIs or database views; the adapter will be developed targeting a particular minimum standard.
+Integration
+TOS vendor will not allow write-back from external systems, even for recommendations.
+The recommended adapter design will be read-mostly by default, with write operations gated and negotiated separately.
+Data quality
+TOS data synced into the digital twin may be stale or inconsistent at the moment of decision-making.
+In case of conflicting values, TOS values always override the synced ones; operators will see timestamps for synced values.
+Sensor / hardware
+RFID/GPS sensors may fail or provide insufficient coverage in the yard.
+Checkpoint data will be treated as optional (but informative) by the orchestration logic; recommendations will always be available, even if based on TOS state directly.
+AI limitations
+LLM-based orchestration logic may fail to correctly interpret ambiguous input.
+Confidence/policy routing will ensure that ambiguous or critical situations are elevated to a human supervisor, rather than acted on by the system; Monitoring Agent will watch for drops in confidence.
+Operational
+Yard workers/planners will disregard AI recommendations due to lack of trust.
+Every recommended action will include an explanation; supervisor approval will be required for all actions, and is explicitly anticipated as a routine part of operations.
+Deployment
+The unique characteristics of the pilot terminal will make it difficult to generalize the results to other terminals.
+Claims will be limited to the capabilities demonstrated on the pilot terminal; multi-terminal capabilities will be a later enhancement.
+Commercial
+Shippers have long lead times for capital approvals for terminal infrastructure.
+Position the solution as a low-risk pilot enhancement rather than a disruptive replacement: see section 17.
+
+
+
+20. Conclusion and Future Scope
+
+This document has outlined one possible technical approach to the problems described, rather than a specific product: a generic layer of AI intelligence running on top of whichever TOS a terminal chooses to use, implementing critical path decisions as deterministic algorithms and using LLMs for orchestration, disambiguation, and explanation, with all recommendations subject to human oversight. By focusing on an architecture that supplements rather than replaces an existing TOS, this design preserves commercial viability (as a pilot program for a terminal operator has limited risk and quick feedback) while being technically realistic (fewer features to implement and test).
+
+
+20.1 Future Scope
+
+
+Reinforcement learning for congestion/scheduling, once the pilot has produced enough data to train such a model
+
+
+Vision-based container identification and damage assessment as a complement to RFID/QR codes
+
+
+Predictive maintenance based on equipment telemetry
+
+
+Multi-terminal coordination for shared resources and aggregated congestion intelligence, after validating the single-terminal approach
+
+
+More extensive write-back capabilities to TOS, if and when a terminal is willing to engage in deeper integration (initial release will be read-only, as per section 17)
+
+
+An operations copilot built into the LLM for natural language queries about yard state and recommendations, building on the explainability features in the Decision Agent
+
+
+
+Appendix — Requirements, Comparison and Cost
+
+
+A.1 Key Requirements
+Type
+Requirement
+Functional
+Validate retrieval requests; locate container from synced cache in under 1 second; generate a twin-checked recommendation; route to supervisor or auto-dispatch per policy; allow override at any stage.
+Non-functional
+Support a 100,000+ container synced cache without degraded lookup latency; target 99.9% uptime for the recommendation path; TLS 1.3 in transit; recommendation and override history retained for 12+ months for audit.
+Hardware (pilot scope)
+IP65 UHF RFID readers at pilot-zone chokepoints; ruggedized Android/iOS scanners; industrial edge gateway; vehicle-mounted GNSS units for trucks; managed cloud Kubernetes cluster.
+Software
+Node.js 20+/Python 3.11+; PostgreSQL 15+/Redis 7+/TimescaleDB; Kafka 3.x; Kubernetes 1.28+; Next.js 14+/React Native.
+
+
+
+
+A.2 Existing Solution Comparison
+Solution
+Approach
+Relationship to ACSA
+Commercial TOS (e.g., Navis N4, Tideworks)
+System of record: berth planning, stowage, equipment and container database, billing
+Not displaced — ACSA is designed to integrate with and sit above it; the TOS remains authoritative for master data.
+Generic fleet/asset tracking platforms
+Location visibility only, typically GPS-based for vehicles
+Complementary at most; does not address retrieval planning or recommendation.
+In-house yard planning spreadsheets/scripts
+Manual, terminal-specific, not real-time
+The realistic status quo ACSA is intended to improve on in a pilot, not a commercial competitor.
+
+
+
+
+A.3 Pilot-Phase Cost Estimate
+
+Indicative planning figures for a single-terminal, single-zone pilot; actual costs depend on the specific TOS integration complexity and IoT hardware scope agreed with the pilot partner.
+Category
+Estimated Cost (INR)
+Cloud infrastructure (compute, managed DB, Kafka)
+₹1,50,000 - ₹2,50,000 / month
+LLM/AI API usage (agent orchestration only, not bulk computation)
+₹50,000 - ₹1,00,000 / month
+IoT hardware (RFID, GPS, edge gateway) — pilot zone
+₹8,00,000 - ₹15,00,000 (one-time)
+TOS integration engineering (adapter development per vendor)
+Variable — dependent on the specific TOS API/EDI access granted by the pilot partner
+
+
+

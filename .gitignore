@@ -1,0 +1,30 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# local databases
+*.sqlite
+*.sqlite3
+*.db
+prisma/dev.db
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
