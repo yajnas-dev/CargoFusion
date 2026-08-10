@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 5 (container search) complete. See the implementation plan for current phase.
+Phase 6 (yard graph + A*) complete. See the implementation plan for current phase.
 
 ## Getting Started
 
@@ -43,7 +43,7 @@ src/
   adapters/tos/         # TOSAdapter interface + MockTOSAdapter (simulated TOS)
   adapters/sensors/     # SensorProvider interface + simulated IoT events
   search/                # Deterministic container search: cache-first lookup, fuzzy match, confidence
-  optimization/         # Deterministic algorithms only: A*, scoring, forecasting
+  optimization/         # Deterministic algorithms only: A* route, equipment scoring, forecasting
   agents/                # Claude orchestration: interpretation, disambiguation, explanation
   twin/                  # Digital twin state and plan validation
   events/                # In-process EventBus (Kafka stand-in)

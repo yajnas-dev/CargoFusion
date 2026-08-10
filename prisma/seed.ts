@@ -1,6 +1,7 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { createRng, pick, randInt, shuffle, type Rng } from "../src/domain/seed/rng";
+import { LANE_SCALE_METERS } from "../src/domain/constants";
 
 /**
  * Synthetic terminal dataset generator (Phase 3). Deterministic from SEED so
@@ -18,7 +19,6 @@ const BLOCK_COLS = 5; // blocks arranged in a 2-row x 5-col yard layout
 const ROWS_PER_BLOCK = 6;
 const BAYS_PER_BLOCK = 24;
 const TIERS_PER_BLOCK = 4;
-const LANE_SCALE_METERS = 50; // distance units -> meters
 
 const OWNER_CODES = [
   "MSKU",
@@ -98,18 +98,35 @@ function buildYardGraph() {
 
   // Two block rows (row 0 above the spine, row 1 below), each block entry
   // connected to the spine node in its column.
+  const rowEntries: NodeDef[][] = [[], []];
   BLOCK_IDS.forEach((blockId, i) => {
     const col = i % BLOCK_COLS;
     const row = Math.floor(i / BLOCK_COLS); // 0 or 1
     const y = row === 0 ? 0 : 1;
     const entry: NodeDef = { id: `BLOCK-${blockId}-ENTRY`, blockId, x: col, y };
     nodes.push(entry);
+    rowEntries[row].push(entry);
     lanes.push({
       fromNodeId: spine[col].id,
       toNodeId: entry.id,
       distanceMeters: dist(spine[col], entry),
     });
   });
+
+  // Lateral aisle lanes between adjacent block entries in the same row.
+  // Without these the graph is a pure tree (one path between any two
+  // points), so a blocked lane would just strand whatever is past it
+  // instead of triggering a reroute — these give A* (Phase 6) real
+  // alternate routes to choose during the congestion/blocked-lane demo.
+  for (const entries of rowEntries) {
+    for (let i = 0; i < entries.length - 1; i++) {
+      lanes.push({
+        fromNodeId: entries[i].id,
+        toNodeId: entries[i + 1].id,
+        distanceMeters: dist(entries[i], entries[i + 1]),
+      });
+    }
+  }
 
   return { nodes, lanes };
 }
