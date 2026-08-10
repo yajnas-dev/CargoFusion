@@ -95,7 +95,17 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 11 complete. **Next: Phase 12 — Supervisor Approval Workflow.**
+Phase 0 through 12 complete. **Next: Phase 13 — Worker/Task Simulation.**
+
+### Phase 12 summary
+
+- `src/approval/SupervisorApprovalService.ts` — new `approval/` module boundary (documented in CONTRIBUTING.md); the only place that writes `Task`/`Recommendation`/`AuditEvent` rows. Everything through Phase 11 was ephemeral (computed per-call, nothing persisted) — this phase is where a plan first becomes a durable record a human can act on.
+- `submitRequest()`: runs the Phase 9 pipeline, and only creates a `Task` if a container actually resolved (`Task.containerId` is a required FK — `AMBIGUOUS`/`NOT_FOUND` have nothing to attach it to). Even in that no-container case, a `REQUEST_SUBMITTED` audit event is still logged (with `taskId: null`), per report section 14's "log both permitted and denied" requirement. For a `READY` plan, also persists a `Recommendation` (route/equipment/confidence from Phases 6/7/11) and logs `RECOMMENDATION_GENERATED`.
+- `approve()` / `reject()` / `override()`: each is a `Task.status` transition plus an `AuditEvent`. `override()` specifically captures report section 12's required fields — who (`actor`), why (`reason`), the original recommendation (equipment/route/confidence snapshotted from the DB, not re-derived), the new decision, and a timestamp — all in the audit event's `detailsJson`, and applies the new equipment assignment to the `Task`.
+- The `explanation` field on `Recommendation` is left empty by this service — Phase 10's `PlanExplainer` output gets written there once the two are wired together at the API layer (a later phase); this phase's job was the persistence/workflow mechanics, not that wiring.
+- **Flaky test found and fixed in passing**: the pre-existing live Gemini integration test (Phase 10) started timing out at its 30s limit under the fuller test suite (26.7s observed standalone, right at the edge) — real API latency variance, not a regression from this phase's changes. Bumped to 60s with a comment explaining the two-call (interpret + explain) budget; reran the full suite twice to confirm stability.
+- Test coverage against the real seeded data: no-container path logs the audit event without a Task; a `READY` submission persists both rows and both audit events; approve/reject/override each verified via their resulting `Task.status`, audit action, and `detailsJson` contents (override specifically checked for the original-vs-new equipment capture).
+- `npm run test` (66 passing, stable across repeated runs), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 11 summary
 
