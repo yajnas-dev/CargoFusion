@@ -30,6 +30,7 @@ The architecture (see the implementation plan's "Prototype vs. Report" table) ke
 - `optimization/` — deterministic algorithms only (A*, scoring, forecasting). No LLM calls here.
 - `agents/` — Claude orchestration, disambiguation, explanation only. No numeric computation here — call into `search/`/`optimization/` instead.
 - `twin/` — digital twin state and validation.
+- `pipeline/` — deterministic composition of search + allocation + route + twin into a single plan. No LLM calls here either; `agents/` calls into this rather than re-wiring the individual services.
 
 ## Local Setup
 
