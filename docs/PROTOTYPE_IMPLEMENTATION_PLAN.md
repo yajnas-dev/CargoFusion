@@ -95,7 +95,17 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 7 complete. **Next: Phase 8 — Digital Twin.**
+Phase 0 through 8 complete. **Next: Phase 9 — Retrieval Planning Pipeline.**
+
+### Phase 8 summary
+
+- `src/twin/DigitalTwin.ts` — `validatePlan()` checks a proposed plan (container + equipment + route) against live state, per report section 12's "feasibility check before accepting any plan."
+- Conflict types checked: `CONTAINER_NOT_FOUND`, `CONTAINER_NOT_ELIGIBLE`, `CONTAINER_RESERVED` (another active task already holds it), `EQUIPMENT_NOT_FOUND`, `EQUIPMENT_UNAVAILABLE`, `EQUIPMENT_DOUBLE_BOOKED`, `LANE_BLOCKED`.
+- Each result carries a `recommendedAction`: `PROCEED` (no issues), `REPLAN` (all issues are ones a fresh allocation/route pass could plausibly fix — unavailable/double-booked equipment, a blocked lane), or `ESCALATE` (anything touching container identity/eligibility, or missing equipment — not something a mechanical retry resolves).
+- Re-validating an existing task's own plan excludes that task from the double-booking/reservation checks via an optional `taskId` on `PlanToValidate`, so a task doesn't conflict with itself.
+- "Live state" here is read straight through `TOSAdapter` plus a direct query against ACSA-owned `Task` rows (same precedent as Phase 7's workload lookup) — no separate cached twin snapshot to keep in sync, since the mock TOS is itself always current. A real deployment would reconcile TOS-sync timestamps against IoT checkpoint recency here.
+- Test coverage against the real seeded data: clean plan proceeds; unknown ids escalate; ineligible container escalates; equipment already committed to another task replans; a task validating against its own existing reservation is not flagged; a blocked lane on the route replans.
+- `npm run test` (43 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 7 summary
 

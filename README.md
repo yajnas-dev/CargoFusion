@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 7 (equipment allocation) complete. See the implementation plan for current phase.
+Phase 8 (digital twin) complete. See the implementation plan for current phase.
 
 ## Getting Started
 
@@ -45,7 +45,7 @@ src/
   search/                # Deterministic container search: cache-first lookup, fuzzy match, confidence
   optimization/         # Deterministic algorithms only: A* route, equipment scoring, forecasting
   agents/                # Claude orchestration: interpretation, disambiguation, explanation
-  twin/                  # Digital twin state and plan validation
+  twin/                   # Digital twin: plan conflict validation against live state
   events/                # In-process EventBus (Kafka stand-in)
 ```
 
