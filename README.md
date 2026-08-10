@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 3 (synthetic data generator) complete. See the implementation plan for current phase.
+Phase 4 (mock TOS adapter) complete. See the implementation plan for current phase.
 
 ## Getting Started
 

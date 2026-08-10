@@ -95,7 +95,17 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 3 complete. **Next: Phase 4 — Mock TOS Adapter.**
+Phase 0 through 4 complete. **Next: Phase 5 — Container Search.**
+
+### Phase 4 summary
+
+- `src/adapters/tos/MockTOSAdapter.ts` implements `TOSAdapter` against the Phase 3 seeded database via the shared Prisma client — the only module permitted to represent "the TOS," per report section 6.1.
+- `searchContainers` tries an exact-id match first, then falls back to a case-insensitive substring match (capped at 20 results) — a placeholder for the real fuzzy-match/disambiguation logic that lands with the Container Search agent in Phase 5.
+- `getEquipment(id?)` returns a single match or the full roster; `getYardState()` composes blocks/nodes/lanes into the `YardState` read shape with a sync timestamp.
+- `getEvents`/`emitEvent` simulate the TOS's optional gate/crane move event stream in memory (report section 6.1) — a real event source arrives with the Phase 15 simulation engine; not persisted, since nothing downstream needs cross-run event history yet.
+- `writeRecommendation` simulates TOS write-back by recording what was sent, never touching container/equipment master data — matches the read-mostly, write-only-for-recommendations design in section 6.
+- Test coverage against the real seeded DB (not mocked): exact/fuzzy container lookup, equipment lookup (single + all), yard-state composition, event emit/filter-by-`since`, and recommendation write-back recording.
+- `npm run test` (18 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 3 summary
 
