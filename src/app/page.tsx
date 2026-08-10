@@ -370,6 +370,20 @@ export default function Dashboard() {
               </button>
             </div>
           )}
+
+          {currentTask?.status === "RETRIEVED" && taskId && (
+            <div className={styles.approvalPanel}>
+              <p className={styles.simDescription}>
+                The worker has confirmed retrieval. Close out the task to mark it complete.
+              </p>
+              <button
+                className={styles.approveButton}
+                onClick={() => runAction(`/api/tasks/${taskId}/complete`, { actor: "supervisor" })}
+              >
+                Mark Completed
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -384,6 +398,7 @@ export default function Dashboard() {
               <th>Equipment</th>
               <th>Worker</th>
               <th>Confidence</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -399,11 +414,21 @@ export default function Dashboard() {
                 <td>{t.assignedEquipment?.id ?? "—"}</td>
                 <td>{t.assignedWorker?.name ?? "—"}</td>
                 <td>{t.recommendations[0]?.confidenceLevel ?? "—"}</td>
+                <td>
+                  {t.status === "RETRIEVED" && (
+                    <button
+                      className={styles.simButton}
+                      onClick={() => runAction(`/api/tasks/${t.id}/complete`, { actor: "supervisor" })}
+                    >
+                      Mark Completed
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={6}>No tasks yet — submit a retrieval request above.</td>
+                <td colSpan={7}>No tasks yet — submit a retrieval request above.</td>
               </tr>
             )}
           </tbody>
