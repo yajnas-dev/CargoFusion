@@ -95,7 +95,16 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 10 complete. **Next: Phase 11 — Confidence / Policy Gate.**
+Phase 0 through 11 complete. **Next: Phase 12 — Supervisor Approval Workflow.**
+
+### Phase 11 summary
+
+- `src/policy/ConfidenceGate.ts` — new `policy/` module boundary (documented in CONTRIBUTING.md). `assess()` takes a `READY` plan and returns a transparent composite score (0-1) plus a `HIGH`/`MEDIUM`/`LOW` `ConfidenceLevel` (reusing the Prisma enum from Phase 2's schema, not a new type), per report section 11.
+- Three weighted factors, each independently visible in the output rather than folded into one opaque number: `searchConfidence` (0.35, from the Phase 5 match), `equipmentScore` (0.35, from the Phase 7 allocation score), `routeCongestionCertainty` (0.30, derived from the average `congestionWeight` across the Phase 6 route's edges — a stand-in for the report's congestion-forecast input, since a full time-series forecasting phase wasn't in this roadmap's scope).
+- Thresholds: ≥0.8 HIGH, ≥0.5 MEDIUM, else LOW — round numbers, explicitly documented as an unvalidated prototype heuristic (report section 11's own caveat: "do not pretend the confidence score is scientifically validated").
+- `isReadyPlan()` type guard narrows a `RetrievalPlanResult` to the fields the gate needs; only `READY` plans are gated; every other pipeline status already carries its own resolution path from Phase 9 (ambiguous → ask, not found/no equipment/no route/escalation → already flagged).
+- Test coverage: the type guard's accept/reject behavior; three synthetic fixtures pinned to hit each of HIGH/MEDIUM/LOW exactly (verifying the threshold math, not just "some level came back"); a no-edge trivial-route case (maximally certain); and one assessment run against a real pipeline `READY` result from the seeded DB, checked for internal consistency (score in range, factors present) rather than a specific value.
+- `npm run test` (61 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Deviation: Gemini instead of Claude for the agent layer
 
