@@ -95,6 +95,15 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 complete (this document, plus repo/collab scaffolding). **Next: Phase 1 — Prototype Architecture & Scaffolding.**
+Phase 0 and Phase 1 complete. **Next: Phase 2 — Domain Model & Database.**
+
+### Phase 1 summary
+
+- Next.js 16 (App Router, TypeScript, Turbopack) scaffolded via `create-next-app`, merged into the repo root (`src/app/`).
+- Layered folder structure created: `src/domain/`, `src/adapters/tos/`, `src/adapters/sensors/`, `src/optimization/`, `src/agents/`, `src/twin/`, `src/events/`.
+- Interfaces defined (no implementations yet, per plan): `TOSAdapter` (`src/adapters/tos/TOSAdapter.ts`), `SensorProvider` (`src/adapters/sensors/SensorProvider.ts`), `EventBus` (`src/events/EventBus.ts`), plus placeholder domain types (`src/domain/types.ts`) to be superseded in Phase 2.
+- Vitest configured (`vitest.config.mts`) with a `@/*` alias matching `tsconfig.json`; smoke test confirms the interfaces compile and are importable.
+- `npm run test`, `npm run typecheck`, `npm run lint`, `npm run build` all pass.
+- `package.json` scripts: `dev`, `build`, `start`, `lint`, `test`, `typecheck`.
 
 Per execution rules, implementation will proceed one phase at a time with explain → implement → test → typecheck/lint → review against report → fix → update this plan → summarize → stop for approval, before moving to Phase 2.

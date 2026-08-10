@@ -4,6 +4,8 @@ out/
 dist/
 build/
 coverage/
+next-env.d.ts
+*.tsbuildinfo
 
 # env / secrets
 .env
