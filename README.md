@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 10 (agent orchestration) complete. See the implementation plan for current phase.
+Phase 11 (confidence/policy gate) complete. See the implementation plan for current phase.
 
 Note: the agent layer uses Gemini, not Claude — a user-directed deviation from the source report; see the implementation plan's Phase 10 section for why.
 
@@ -51,6 +51,7 @@ src/
   agents/                # LLM orchestration (Gemini): interpretation, disambiguation, explanation
   twin/                   # Digital twin: plan conflict validation against live state
   pipeline/               # Composes search + allocation + route + twin into one plan
+  policy/                 # Confidence/policy gate: transparent HIGH/MEDIUM/LOW scoring
   events/                # In-process EventBus (Kafka stand-in)
 ```
 
