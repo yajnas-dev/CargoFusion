@@ -34,6 +34,8 @@ The architecture (see the implementation plan's "Prototype vs. Report" table) ke
 - `policy/` — the confidence/policy gate: a transparent composite score over an already-computed READY plan. Deterministic; no LLM calls.
 - `approval/` — human-in-the-loop workflow: persists a resolved plan as Task + Recommendation, exposes Approve/Reject/Override, writes every action to the audit log.
 - `worker/` — carries an APPROVED task through dispatch/start/confirm/complete, the worker-facing side of the same state machine; also writes Task/Worker/Container updates and AuditEvent rows for those transitions.
+- `app/api/` — thin route handlers only. They wire adapters/agents/pipeline/approval/worker services together and shape JSON responses; no business logic of their own beyond a deterministic fallback (`agents/fallback.ts`) for when Gemini is unavailable.
+- `app/` (pages) — `page.tsx` is the supervisor dashboard, `worker/page.tsx` is the worker app. Client components; fetch the `app/api/` routes rather than importing services directly (services use Node-only deps like `better-sqlite3`, which don't belong in a client bundle).
 
 ## Local Setup
 

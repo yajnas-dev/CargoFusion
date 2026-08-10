@@ -95,7 +95,18 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 13 complete. **Next: Phase 14 — Dashboard.**
+Phase 0 through 14 complete. **Next: Phase 15 — Real-Time Simulation & Demo Controls.**
+
+### Phase 14 summary
+
+- **API layer** (`src/app/api/`): thin route handlers wiring every prior phase together — `POST /api/retrieval-requests` (interpret → persist → explain, the full report section 5 flow in one call), `GET/POST /api/tasks[/[id]]` and its action sub-routes (`approve`, `reject`, `override`, `dispatch`, `start`, `confirm`, `complete`), `GET /api/yard`, `GET /api/workers[/[id]/active-task]`. Verified Next.js 16's async route-params signature (`{ params: Promise<{ id: string }> }`) compiles and works correctly.
+- **Dashboard** (`src/app/page.tsx`): yard overview (active tasks, equipment availability, blocked lanes, average congestion, per-block container counts), a single free-text retrieval-request input (natural language or a bare container id — both go through the same interpret step), a recommendation panel (container, equipment + score, route + ETA, twin validation, confidence breakdown), an approval panel (Approve/Reject/Override, with Override offering the runner-up equipment candidates from the same request), and a live task-tracking table.
+- **Worker app** (`src/app/worker/page.tsx`): a worker picker plus a single-active-task view with Start/Confirm actions, matching the report's "minimal, single active task" design constraint (section 16) rather than building out a full separate mobile client.
+- **Resilience**: `src/agents/fallback.ts` provides deterministic stand-ins for `RequestInterpreter`/`PlanExplainer` when Gemini is unavailable (no key, network error, or rate limit — all three were hit for real during this project). The API route catches Gemini failures and falls back rather than erroring the request.
+- **Bug found via live smoke-testing, not unit tests**: the first fallback implementation used the *entire* raw sentence as the container search query, so a natural-language request like "Retrieve OOLU0187810 as quickly as possible" failed to match anything once quota exhaustion forced the fallback path (confirmed live — see below). Fixed by extracting an ISO-6346-shaped token (4 letters + 6-7 digits) from the sentence, with a keyword-based urgency heuristic (`urgent`/`asap`/`quickly`/etc.) as a secondary improvement. Added `src/agents/fallback.test.ts` to lock this in.
+- **Verification**: `chromium-cli` (the standard browser-driving tool for this environment) was not available, so the "test in a browser" requirement was met via a full curl-driven functional smoke test of every route the UI calls instead of a visual/screenshot check — this is disclosed explicitly rather than claimed as a browser test. Exercised live against the running dev server: submitted a real natural-language request → got a `READY` plan with `HIGH` confidence → approved → dispatched → started → confirmed → completed, checked the resulting audit trail (`REQUEST_SUBMITTED → RECOMMENDATION_GENERATED → APPROVED → DISPATCHED → STATUS_CHANGED → WORKER_CONFIRMED → STATUS_CHANGED`), and fetched both pages' HTML to confirm their key sections render. Local `dev.db` was reseeded afterward to restore pristine demo state (gitignored, so no repo impact either way).
+- Two React strict-lint fixes required by `eslint-config-next`'s current `react-hooks` rules: deferred the initial data-fetch-on-mount calls (`setTimeout(fn, 0)`) so they're not flagged as synchronous `setState`-in-effect, and replaced `<a>` tags with `next/link`'s `Link` for internal navigation.
+- `npm run test` (75 passing + 1 skipped when Gemini quota-limited), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 13 summary
 

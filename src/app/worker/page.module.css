@@ -1,0 +1,88 @@
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.header h1 {
+  font-size: 1.3rem;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 1rem;
+}
+
+.taskCard {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  background: var(--panel-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.containerId {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.location {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.statusBadge {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--subtle-bg);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.actionButton {
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 40px 0;
+}
+
+.errorText {
+  color: #c0392b;
+  font-size: 0.88rem;
+}
