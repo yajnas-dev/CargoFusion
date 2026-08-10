@@ -34,14 +34,24 @@ export default function WorkerApp() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    api<{ workers: Worker[] }>("/api/workers").then((data) => setWorkers(data.workers));
+  const loadWorkers = useCallback(async () => {
+    const data = await api<{ workers: Worker[] }>("/api/workers");
+    setWorkers(data.workers);
   }, []);
 
   const loadActiveTask = useCallback(async (id: string) => {
     const data = await api<{ task: ActiveTask | null }>(`/api/workers/${id}/active-task`);
     setTask(data.task);
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(loadWorkers, 0);
+    const interval = setInterval(loadWorkers, 5000); // keeps each option's (AVAILABLE/BUSY) label current
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [loadWorkers]);
 
   useEffect(() => {
     if (!workerId) return;
