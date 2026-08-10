@@ -91,14 +91,17 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [overrideEquipmentId, setOverrideEquipmentId] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
+  const [simRunning, setSimRunning] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [yardData, taskData] = await Promise.all([
+    const [yardData, taskData, simStatus] = await Promise.all([
       api<YardSummary>("/api/yard"),
       api<{ tasks: TaskRow[] }>("/api/tasks"),
+      api<{ running: boolean }>("/api/simulation/status"),
     ]);
     setYard(yardData);
     setTasks(taskData.tasks);
+    setSimRunning(simStatus.running);
   }, []);
 
   useEffect(() => {
@@ -191,6 +194,40 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className={styles.panel}>
+        <h2>Simulation Controls</h2>
+        <p className={styles.simDescription}>
+          Trigger yard events on demand, or start the background simulator for continuous ambient activity
+          (equipment moves, congestion drifts, occasional RFID checkpoints and availability changes).
+        </p>
+        <div className={styles.simButtonRow}>
+          <button
+            className={simRunning ? styles.rejectButton : styles.approveButton}
+            onClick={() => runAction(simRunning ? "/api/simulation/stop" : "/api/simulation/start")}
+          >
+            {simRunning ? "Stop Background Simulation" : "Start Background Simulation"}
+          </button>
+          <button className={styles.simButton} onClick={() => runAction("/api/simulation/congestion", {})}>
+            Simulate Congestion Spike
+          </button>
+          <button className={styles.simButton} onClick={() => runAction("/api/simulation/block-lane", {})}>
+            Block Random Lane
+          </button>
+          <button className={styles.simButton} onClick={() => runAction("/api/simulation/unblock-lanes")}>
+            Unblock All Lanes
+          </button>
+          <button className={styles.simButton} onClick={() => runAction("/api/simulation/move-equipment", {})}>
+            Move Random Equipment
+          </button>
+          <button className={styles.simButton} onClick={() => runAction("/api/simulation/rfid-event", {})}>
+            Trigger RFID Event
+          </button>
+          <button className={styles.simButton} onClick={() => runAction("/api/simulation/equipment-status", {})}>
+            Flap Equipment Availability
+          </button>
+        </div>
       </section>
 
       <section className={styles.panel}>

@@ -193,6 +193,32 @@
   gap: 8px;
 }
 
+.simDescription {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.simButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.simButton {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--subtle-bg);
+  color: var(--foreground);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.simButton:hover {
+  background: var(--border);
+}
+
 .overrideForm {
   display: flex;
   flex-wrap: wrap;
