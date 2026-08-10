@@ -30,3 +30,11 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# auto-installed by `prisma init` (agent-tool skill bundles, not project code)
+.claude/skills/
+.windsurf/
+.agents/
+skills-lock.json
+
+/src/generated/prisma

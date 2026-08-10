@@ -1,0 +1,244 @@
+// ACSA prototype domain model.
+// The TOS remains the conceptual source of truth (see docs/PROTOTYPE_IMPLEMENTATION_PLAN.md);
+// Container/Equipment/YardNode/YardLane here are the local synced cache populated by
+// MockTOSAdapter (Phase 4). Task/Recommendation/AuditEvent are ACSA-owned data that has
+// no TOS equivalent, per report section 6.3.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum ContainerStatus {
+  IN_YARD
+  RESERVED
+  DISPATCHED
+  RETRIEVED
+  DEPARTED
+}
+
+enum ContainerType {
+  DRY
+  REEFER
+  TANK
+  OPEN_TOP
+  FLAT_RACK
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// TOS-synced cache. ACSA never writes to this table's source data — only overwrites
+// its local copy on sync, per report section 9.
+model Container {
+  id                 String          @id // e.g. "MSKU1234567"
+  block              String
+  row                Int
+  bay                Int
+  tier               Int
+  status             ContainerStatus @default(IN_YARD)
+  priority           Priority        @default(MEDIUM)
+  type               ContainerType   @default(DRY)
+  weightKg           Int
+  destination        String
+  retrievalEligible  Boolean         @default(true)
+  lastSyncedAt       DateTime        @default(now())
+
+  tasks Task[]
+
+  @@index([block, row, bay])
+  @@index([status])
+}
+
+enum EquipmentType {
+  YARD_TRUCK
+  CRANE
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+// TOS-synced cache, consumed by the Equipment Allocation agent (report section 8.1).
+model Equipment {
+  id             String          @id
+  type           EquipmentType
+  status         EquipmentStatus @default(AVAILABLE)
+  capacityKg     Int
+  currentNodeId  String
+  currentNode    YardNode        @relation(fields: [currentNodeId], references: [id])
+  lastSyncedAt   DateTime        @default(now())
+
+  tasks          Task[]
+
+  @@index([status, type])
+}
+
+// Populated from the TOS's yard/stowage plan; forms the yard graph for A* (Phase 6).
+model YardBlock {
+  id    String @id
+  name  String
+
+  nodes YardNode[]
+}
+
+model YardNode {
+  id      String  @id
+  blockId String?
+  block   YardBlock? @relation(fields: [blockId], references: [id])
+  x       Float // for map rendering
+  y       Float
+
+  equipment    Equipment[]
+  lanesFrom    YardLane[]  @relation("LaneFrom")
+  lanesTo      YardLane[]  @relation("LaneTo")
+}
+
+// Edges of the yard graph; congestionWeight and blocked are mutated by the
+// simulation engine (Phase 15) to demonstrate ACSA reacting to changing conditions.
+model YardLane {
+  id               String   @id @default(cuid())
+  fromNodeId       String
+  fromNode         YardNode @relation("LaneFrom", fields: [fromNodeId], references: [id])
+  toNodeId         String
+  toNode           YardNode @relation("LaneTo", fields: [toNodeId], references: [id])
+  distanceMeters   Float
+  blocked          Boolean  @default(false)
+  congestionWeight Float    @default(1.0) // multiplier applied to distance for A*
+
+  @@index([fromNodeId])
+  @@index([toNodeId])
+}
+
+enum WorkerStatus {
+  AVAILABLE
+  BUSY
+  OFF_SHIFT
+}
+
+model Worker {
+  id     String       @id
+  name   String
+  status WorkerStatus @default(AVAILABLE)
+
+  tasks Task[]
+}
+
+enum TaskStatus {
+  REQUESTED
+  PLANNED
+  APPROVED
+  REJECTED
+  DISPATCHED
+  IN_PROGRESS
+  RETRIEVED
+  COMPLETED
+}
+
+// ACSA-owned; has no TOS equivalent (report section 6.3).
+model Task {
+  id                String     @id @default(cuid())
+  containerId       String
+  container         Container  @relation(fields: [containerId], references: [id])
+  status            TaskStatus @default(REQUESTED)
+  priority          Priority   @default(MEDIUM)
+  requestedBy       String
+  naturalLanguageRequest String?
+
+  assignedEquipmentId String?
+  assignedEquipment    Equipment? @relation(fields: [assignedEquipmentId], references: [id])
+  assignedWorkerId     String?
+  assignedWorker       Worker?    @relation(fields: [assignedWorkerId], references: [id])
+
+  recommendations Recommendation[]
+  auditEvents     AuditEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([containerId])
+}
+
+enum ConfidenceLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// One plan proposed for a task; see report sections 8 (Decision agent) and 13 (policy gate).
+model Recommendation {
+  id               String          @id @default(cuid())
+  taskId           String
+  task             Task            @relation(fields: [taskId], references: [id])
+
+  routeJson        String // serialized path (node ids), distance, ETA
+  equipmentId      String
+  confidence       Float // 0-1, transparent composite score
+  confidenceLevel  ConfidenceLevel
+  confidenceFactorsJson String // factor breakdown shown to the supervisor
+  explanation      String // Claude-generated human-readable explanation
+  twinValidated    Boolean
+  twinIssuesJson   String? // conflicts found during digital-twin validation, if any
+
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+enum AuditAction {
+  REQUEST_SUBMITTED
+  RECOMMENDATION_GENERATED
+  APPROVED
+  REJECTED
+  OVERRIDDEN
+  DISPATCHED
+  WORKER_CONFIRMED
+  STATUS_CHANGED
+}
+
+// Immutable log, per report section 14 (audit of every access decision and
+// section 12 (override capture: who/why/original vs. new decision/timestamp).
+model AuditEvent {
+  id          String      @id @default(cuid())
+  taskId      String?
+  task        Task?       @relation(fields: [taskId], references: [id])
+  action      AuditAction
+  actor       String // user id/role, or "system" for agent-initiated events
+  detailsJson String // freeform structured detail (e.g. override reason, prior vs new decision)
+  createdAt   DateTime    @default(now())
+
+  @@index([taskId])
+  @@index([action])
+}
+
+enum SensorEventType {
+  RFID_CHECKPOINT
+  GPS_POSITION
+  CRANE_TELEMETRY
+  TRUCK_TELEMETRY
+  QR_SCAN
+}
+
+// Simulated IoT/edge events (report section 10); feeds the digital twin between TOS syncs.
+model SensorEvent {
+  id          String          @id @default(cuid())
+  type        SensorEventType
+  subjectId   String // container id, equipment id, or worker id depending on type
+  nodeId      String? // yard node where the event occurred, if applicable
+  payloadJson String // sensor-specific data (e.g. load %, speed, fuel level)
+  occurredAt  DateTime        @default(now())
+
+  @@index([type])
+  @@index([subjectId])
+}
