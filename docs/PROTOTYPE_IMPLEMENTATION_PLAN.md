@@ -95,7 +95,18 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0, 1, and 2 complete. **Next: Phase 3 — Synthetic Data Generator.**
+Phase 0 through 3 complete. **Next: Phase 4 — Mock TOS Adapter.**
+
+### Phase 3 summary
+
+- `src/domain/seed/rng.ts` — a seeded PRNG (mulberry32) plus `pick`/`randInt`/`shuffle` helpers, reusable later by the simulation engine (Phase 15) so live-demo randomness stays reproducible too.
+- `prisma/seed.ts` — deterministic generator (fixed `SEED = 42`) producing: a 16-node/15-lane yard graph (gate + 5-column spine + 10 block entries across a 2-row layout), 110 equipment (20 cranes + 90 yard trucks) placed on graph nodes, 1,200 containers (exceeds the 1,000+ target) with unique block/row/bay/tier slots and realistic status/priority/type/destination distributions, and 40 workers.
+- Re-running `npm run db:seed` clears and regenerates identically — verified counts and leading records are byte-identical across two runs.
+- `npm run db:seed` registered as a script; `prisma.config.ts` also wires it as the `migrations.seed` hook for `prisma migrate reset`.
+- Test coverage: `src/domain/seed/rng.test.ts` (determinism of the PRNG itself) and `prisma/seed.test.ts` (shape/scale/FK-integrity assertions against the actual seeded database, not mocks).
+- `npm run test` (11 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
+
+Note for contributors: `npm run db:seed` must be run once after `npm run db:migrate` to populate demo data (documented in README).
 
 ### Phase 2 summary
 

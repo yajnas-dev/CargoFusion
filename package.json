@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",
@@ -30,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "prisma": "^7.9.1",
+    "tsx": "^4.23.12",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }
