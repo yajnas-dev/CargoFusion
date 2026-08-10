@@ -6,10 +6,11 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 - [`Autonomous-Container-Search-Assistant-Engineering-Report-Combined.docx`](./Autonomous-Container-Search-Assistant-Engineering-Report-Combined.docx) / [`report.txt`](./report.txt) — source specification
 - [`docs/PROTOTYPE_IMPLEMENTATION_PLAN.md`](./docs/PROTOTYPE_IMPLEMENTATION_PLAN.md) — phased build plan and current status
+- [`docs/DEMO_SCRIPT.md`](./docs/DEMO_SCRIPT.md) — presenter walkthrough for demoing this prototype
 
 ## Status
 
-Phase 15 (real-time simulation & demo controls) complete — the app is demo-able end-to-end via `npm run dev`, including live yard-adaptation controls. See the implementation plan for current phase.
+**All 16 build phases complete.** The full report-section-2 scenario works end to end — natural-language request → simulated TOS lookup → deterministic optimization → AI orchestration → digital-twin validation → confidence gate → human approval → simulated dispatch → worker confirmation → completed retrieval → dashboard + audit trail — demo-able via `npm run dev`. See [`docs/PROTOTYPE_IMPLEMENTATION_PLAN.md`](./docs/PROTOTYPE_IMPLEMENTATION_PLAN.md) for the full phase-by-phase build record.
 
 Note: the agent layer uses Gemini, not Claude — a user-directed deviation from the source report; see the implementation plan's Phase 10 section for why.
 
