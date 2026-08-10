@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
+import "dotenv/config"; // loads GEMINI_API_KEY etc. from .env for gated live-integration tests
 
 export default defineConfig({
   resolve: {
