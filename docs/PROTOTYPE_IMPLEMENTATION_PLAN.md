@@ -95,7 +95,15 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 15 complete. **Next: Phase 16 — End-to-End Demo Testing.**
+**All 16 phases complete.** The prototype implements the full report-section-2 scenario end to end, demo-ready via `npm run dev`. See [`docs/DEMO_SCRIPT.md`](./DEMO_SCRIPT.md) for a presenter walkthrough.
+
+### Phase 16 summary
+
+- `src/e2e/full-demo-scenario.test.ts` — a single comprehensive test driving the actual Next.js API route handlers directly (not the underlying service classes, and not a mock) through the prototype brief's exact 18-step scenario: submit a natural-language request → resolved `READY` plan with confidence → approve → dispatch → worker start → worker confirm → complete → dashboard task list reflects `COMPLETED` → yard summary's active-task count drops → the container's own status updates → the full seven-event audit trail is present, in order, with no gaps. This is the closest a Vitest test can get to "a browser hit these endpoints" without an actual running HTTP server — `NextRequest`/`Request` objects are constructed directly and passed to the imported route handler functions.
+- The test doesn't care whether Gemini or its deterministic fallback interpreted the request — both paths are already covered individually (Phase 10, Phase 14); this test's job is proving the *chain* holds together, not re-litigating which LLM path ran. Verified stable across repeated runs (typically resolves via the fallback path in under 1s, since Gemini's free-tier quota was exhausted for the day during this project's real usage — itself a demonstration of the fallback design working as intended).
+- The test creates real `Task`/`Recommendation`/`AuditEvent` rows and mutates the target `Container`/`Worker` — cleans up after itself (deletes the rows it created, restores the container/worker to their seeded state) so it doesn't leave residue for other test files, following the established pattern from every prior phase's tests.
+- `docs/DEMO_SCRIPT.md` — a presenter-facing script mapping each report-section-2 step to an actual UI action, plus: what each panel's numbers mean and which phase produced them (useful for answering questions live), a "what's simulated vs. the real architecture" reference, explicit talking points for the Gemini/Claude deviation, and concrete recovery steps for the two failure modes this project actually hit during development (Gemini rate-limiting mid-session, and needing to reseed after manual testing).
+- `npm run test` (87 passing + 1 skipped when Gemini quota-limited), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 15 summary
 
