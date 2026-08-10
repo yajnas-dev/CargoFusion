@@ -99,6 +99,14 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 const DISABLED_NAV_ITEMS = ["Equipment", "Trucks", "Alerts", "Analytics", "Settings"];
 
+const NAV_LINKS: { label: string; targetId: string }[] = [
+  { label: "Dashboard", targetId: "top" },
+  { label: "Container Search", targetId: "search-card" },
+  { label: "Yard Map", targetId: "yard-map-card" },
+  { label: "Operations", targetId: "operations-card" },
+  { label: "Simulation", targetId: "simulation-panel" },
+];
+
 export default function Dashboard() {
   const [yard, setYard] = useState<YardSummary | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
@@ -111,6 +119,8 @@ export default function Dashboard() {
   const [simRunning, setSimRunning] = useState(false);
   const [apiHealthy, setApiHealthy] = useState(true);
   const [clock, setClock] = useState("");
+  const [activeNavId, setActiveNavId] = useState("top");
+  const [toast, setToast] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -174,6 +184,17 @@ export default function Dashboard() {
     }
   }
 
+  function goToSection(e: React.MouseEvent<HTMLAnchorElement>, targetId: string) {
+    e.preventDefault();
+    setActiveNavId(targetId);
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function showComingSoon(item: string) {
+    setToast(`${item} isn't built in this prototype yet.`);
+    setTimeout(() => setToast(null), 2500);
+  }
+
   const taskId = result?.task?.id;
   const currentTask = tasks.find((t) => t.id === taskId);
   const activeStatus = currentTask?.status ?? result?.task?.status;
@@ -190,27 +211,29 @@ export default function Dashboard() {
           </div>
         </div>
         <nav className={styles.nav}>
-          <a href="#top" className={`${styles.navItem} ${styles.navItemActive}`}>
-            Dashboard
-          </a>
-          <a href="#search-card" className={styles.navItem}>
-            Container Search
-          </a>
-          <a href="#yard-map-card" className={styles.navItem}>
-            Yard Map
-          </a>
-          <a href="#operations-card" className={styles.navItem}>
-            Operations
-          </a>
-          <a href="#simulation-panel" className={styles.navItem}>
-            Simulation
-          </a>
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.targetId}
+              href={`#${link.targetId}`}
+              onClick={(e) => goToSection(e, link.targetId)}
+              className={`${styles.navItem} ${activeNavId === link.targetId ? styles.navItemActive : ""}`}
+            >
+              {link.label}
+            </a>
+          ))}
           {DISABLED_NAV_ITEMS.map((item) => (
-            <span key={item} className={styles.navItemDisabled} title="Not built in this prototype yet">
+            <button
+              key={item}
+              type="button"
+              className={styles.navItemDisabled}
+              title="Not built in this prototype yet"
+              onClick={() => showComingSoon(item)}
+            >
               {item}
-            </span>
+            </button>
           ))}
         </nav>
+        {toast && <div className={styles.toast}>{toast}</div>}
         <div className={styles.sidebarFooter}>
           <div className={styles.systemStatus}>
             <span className={`${styles.statusDot} ${apiHealthy ? styles.statusDotOn : styles.statusDotOff}`} />
