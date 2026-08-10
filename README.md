@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 4 (mock TOS adapter) complete. See the implementation plan for current phase.
+Phase 5 (container search) complete. See the implementation plan for current phase.
 
 ## Getting Started
 
@@ -42,6 +42,7 @@ src/
   domain/              # Domain types (from prisma/schema.prisma) + db.ts client singleton
   adapters/tos/         # TOSAdapter interface + MockTOSAdapter (simulated TOS)
   adapters/sensors/     # SensorProvider interface + simulated IoT events
+  search/                # Deterministic container search: cache-first lookup, fuzzy match, confidence
   optimization/         # Deterministic algorithms only: A*, scoring, forecasting
   agents/                # Claude orchestration: interpretation, disambiguation, explanation
   twin/                  # Digital twin state and plan validation
