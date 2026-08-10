@@ -95,7 +95,17 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 8 complete. **Next: Phase 9 — Retrieval Planning Pipeline.**
+Phase 0 through 9 complete. **Next: Phase 10 — Claude Agent Orchestration.**
+
+### Phase 9 summary
+
+- `src/pipeline/RetrievalPlanningPipeline.ts` — new `pipeline/` module boundary (documented in CONTRIBUTING.md), composing Phases 5-8 into one deterministic flow: search → resolve container → allocate equipment → compute route → validate against the digital twin. No AI involved, matching report section 5's flow minus the orchestration/approval steps that arrive in later phases.
+- Container resolution rule: a single search match, or a top match at confidence 1.0 (an exact id), is treated as unambiguous and proceeds automatically; anything else (multiple non-exact candidates with no clear winner) comes back as `AMBIGUOUS` with all candidates attached, for Phase 10's Claude agent to disambiguate rather than the pipeline guessing.
+- Self-correction: if the top-ranked equipment candidate fails digital-twin validation for a replannable reason (double-booked/unavailable — e.g. a concurrent request claimed it first), the pipeline automatically retries with the next-ranked candidate (up to 5 attempts) before giving up. A genuinely ESCALATE-worthy twin result (bad container state, missing equipment) stops the retry loop immediately rather than wasting attempts.
+- Result statuses: `READY`, `AMBIGUOUS`, `NOT_FOUND`, `NO_EQUIPMENT`, `NO_ROUTE`, `NEEDS_ESCALATION` — every non-READY status still carries whatever partial data (matches, candidates, last attempted route/twin result) is available, so the UI/agent can explain what happened rather than just showing a failure.
+- **Test infra fix**: found and fixed a real bug during this phase — Vitest was running test files in parallel by default, and several test files mutate shared rows (equipment status, task rows, lane `blocked` flags) in the same SQLite database with `afterEach` cleanup rather than per-test transactional isolation. Concurrent files raced against each other's fixtures, producing order-dependent false failures (reproduced, confirmed by running the failing file alone — it passed). Fixed via `fileParallelism: false` in `vitest.config.mts`, verified stable across repeated full-suite runs.
+- Test coverage: a clean READY path, NOT_FOUND, AMBIGUOUS (a short owner-code-prefix query matching many containers), NO_EQUIPMENT (all yard trucks forced offline), and the self-correction retry (double-book the pipeline's own first-choice equipment mid-test, confirm the second run picks a different one and still succeeds) — all against the real seeded DB.
+- `npm run test` (48 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 8 summary
 

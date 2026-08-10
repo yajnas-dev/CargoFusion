@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 8 (digital twin) complete. See the implementation plan for current phase.
+Phase 9 (retrieval planning pipeline) complete. See the implementation plan for current phase.
 
 ## Getting Started
 
@@ -46,6 +46,7 @@ src/
   optimization/         # Deterministic algorithms only: A* route, equipment scoring, forecasting
   agents/                # Claude orchestration: interpretation, disambiguation, explanation
   twin/                   # Digital twin: plan conflict validation against live state
+  pipeline/               # Composes search + allocation + route + twin into one plan
   events/                # In-process EventBus (Kafka stand-in)
 ```
 
