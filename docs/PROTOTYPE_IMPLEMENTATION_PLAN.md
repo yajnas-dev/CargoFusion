@@ -95,7 +95,18 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 14 complete. **Next: Phase 15 — Real-Time Simulation & Demo Controls.**
+Phase 0 through 15 complete. **Next: Phase 16 — End-to-End Demo Testing.**
+
+### Phase 15 summary
+
+- `src/simulation/DemoControls.ts` — one-shot operator actions matching report section 13/5 exactly: block/unblock a lane, spike or drift congestion, reset congestion, move equipment (to an explicit node or a random neighbor), set/flap equipment availability, trigger an RFID checkpoint event. Uses plain `Math.random()` (unlike the Phase 3 dataset generator's seeded RNG) — live demo interactions don't need to be reproducible across runs, only the initial dataset does.
+- `src/simulation/SimulationEngine.ts` — interval-driven background `tick()` that randomly performs one of: equipment movement, congestion drift (small random walk across all lanes, not a one-off spike), an equipment availability flap, or an RFID event. **Deliberately opt-in**: `start()`/`stop()`/`isRunning()` are the only way it runs — it never starts itself on module load, specifically so it can't reintroduce the kind of test/dev-session interference found in Phase 9's flaky-test bug.
+- New `simulation/` module boundary documented in CONTRIBUTING.md.
+- API routes (`src/app/api/simulation/`): `start`, `stop`, `status`, and one route per demo control (`congestion`, `block-lane`, `unblock-lanes`, `move-equipment`, `rfid-event`, `equipment-status`).
+- Dashboard: a new "Simulation Controls" panel with a Start/Stop toggle for the background engine plus one button per one-shot control, all wired through the existing `runAction` helper and the existing 8s polling loop — no new UI plumbing needed since Phase 14 already refreshes the Yard Overview stats that these controls visibly move.
+- **Real visual verification** (Playwright/Chromium, same standalone QA setup from Phase 14): confirmed live that Block Random Lane moves "Blocked lanes" 0→1, Simulate Congestion Spike moves "Avg congestion" up, Flap Equipment Availability moves "Equipment available" down by one, starting the background simulator further drifts congestion over ~9s of real polling, and Unblock All Lanes resets blocked lanes back to 0 — all with zero browser console errors.
+- Test coverage: `DemoControls` — each control's specific effect (explicit lane/equipment targets, clamping behavior, the "no candidates left" null case); `SimulationEngine` — `start()`/`stop()`/idempotent-`start()` behavior under fake timers, and a 25-tick stress test asserting congestion stays within `[1, 3]` and every equipment's `currentNodeId` still references a real yard node throughout. Both test files snapshot and restore every row they touch, following the established pattern for tests that mutate shared seeded data.
+- `npm run test` (86 passing + 1 skipped when Gemini quota-limited), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 14 summary
 
