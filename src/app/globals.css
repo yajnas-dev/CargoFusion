@@ -20,6 +20,28 @@
   }
 }
 
+/*
+ * Fixed dark "ops console" palette for the dashboard/worker app —
+ * intentionally always-dark (not gated on prefers-color-scheme), the
+ * same way a branded operations tool would be, rather than an
+ * adaptive general-purpose page.
+ */
+:root {
+  --ops-bg: #0b0e14;
+  --ops-sidebar-bg: #0d1117;
+  --ops-panel-bg: #131722;
+  --ops-panel-bg-alt: #171c28;
+  --ops-map-bg: #0d1117;
+  --ops-border: #232838;
+  --ops-text: #e6e8ee;
+  --ops-muted: #8b93a7;
+  --ops-accent: #5b8def;
+  --ops-accent-dim: #2f3b57;
+  --ops-green: #3fb950;
+  --ops-amber: #f5a623;
+  --ops-red: #e5484d;
+}
+
 html {
   height: 100%;
 }
