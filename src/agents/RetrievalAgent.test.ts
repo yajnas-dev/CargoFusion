@@ -85,6 +85,6 @@ describe.runIf(!!process.env.GEMINI_API_KEY)(
       expect(response.interpreted.containerQuery.toUpperCase()).toContain(container!.id);
       expect(response.planResult?.status).toBe("READY");
       expect(response.explanation.length).toBeGreaterThan(0);
-    }, 30_000);
+    }, 60_000); // two live Gemini calls (interpret + explain); latency observed up to ~27s standalone
   },
 );

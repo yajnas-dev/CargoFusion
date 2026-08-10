@@ -1,0 +1,143 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { SupervisorApprovalService } from "@/approval/SupervisorApprovalService";
+import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
+import { prisma } from "@/domain/db";
+
+describe("SupervisorApprovalService", () => {
+  const createdTaskIds: string[] = [];
+  const looseAuditActors: string[] = []; // for audit events created without a Task (NOT_FOUND path)
+
+  afterEach(async () => {
+    if (createdTaskIds.length > 0) {
+      await prisma.auditEvent.deleteMany({ where: { taskId: { in: createdTaskIds } } });
+      await prisma.recommendation.deleteMany({ where: { taskId: { in: createdTaskIds } } });
+      await prisma.task.deleteMany({ where: { id: { in: createdTaskIds } } });
+      createdTaskIds.length = 0;
+    }
+    if (looseAuditActors.length > 0) {
+      await prisma.auditEvent.deleteMany({ where: { actor: { in: looseAuditActors } } });
+      looseAuditActors.length = 0;
+    }
+  });
+
+  it("logs a REQUEST_SUBMITTED audit event without creating a Task when no container resolves", async () => {
+    const actor = "test-actor-notfound";
+    looseAuditActors.push(actor);
+
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const result = await service.submitRequest({
+      containerQuery: "ZZZZ9999999",
+      requestedBy: actor,
+      priority: "MEDIUM",
+    });
+
+    expect(result.planResult.status).toBe("NOT_FOUND");
+    expect(result.task).toBeUndefined();
+
+    const audit = await prisma.auditEvent.findFirst({ where: { actor, action: "REQUEST_SUBMITTED" } });
+    expect(audit).not.toBeNull();
+    expect(audit!.taskId).toBeNull();
+  });
+
+  it("persists a Task + Recommendation and logs both audit events for a READY plan", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    expect(container).not.toBeNull();
+
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const result = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "HIGH",
+    });
+    expect(result.task).toBeDefined();
+    createdTaskIds.push(result.task!.id);
+
+    expect(result.planResult.status).toBe("READY");
+    expect(result.task!.status).toBe("PLANNED");
+    expect(result.recommendation).toBeDefined();
+    expect(result.recommendation!.taskId).toBe(result.task!.id);
+    expect(result.confidence).toBeDefined();
+    expect(result.recommendation!.confidenceLevel).toBe(result.confidence!.level);
+
+    const events = await prisma.auditEvent.findMany({ where: { taskId: result.task!.id } });
+    expect(events.map((e) => e.action).sort()).toEqual(["RECOMMENDATION_GENERATED", "REQUEST_SUBMITTED"]);
+  });
+
+  it("approve() sets the task to APPROVED and logs an APPROVED audit event", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task } = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task!.id);
+
+    const approved = await service.approve(task!.id, "supervisor-1");
+    expect(approved.status).toBe("APPROVED");
+
+    const audit = await prisma.auditEvent.findFirst({
+      where: { taskId: task!.id, action: "APPROVED" },
+    });
+    expect(audit?.actor).toBe("supervisor-1");
+  });
+
+  it("reject() sets the task to REJECTED and records the reason", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task } = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task!.id);
+
+    const rejected = await service.reject(task!.id, "supervisor-1", "Container needed elsewhere first.");
+    expect(rejected.status).toBe("REJECTED");
+
+    const audit = await prisma.auditEvent.findFirst({
+      where: { taskId: task!.id, action: "REJECTED" },
+    });
+    expect(JSON.parse(audit!.detailsJson)).toEqual({ reason: "Container needed elsewhere first." });
+  });
+
+  it("override() captures who/why/original-vs-new and applies the new equipment decision", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task, recommendation } = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task!.id);
+
+    const alternateEquipment = await prisma.equipment.findFirst({
+      where: { type: "YARD_TRUCK", status: "AVAILABLE", id: { not: recommendation!.equipmentId } },
+    });
+    expect(alternateEquipment).not.toBeNull();
+
+    const overridden = await service.override(task!.id, "supervisor-2", "Prefer a closer truck.", {
+      equipmentId: alternateEquipment!.id,
+    });
+
+    expect(overridden.status).toBe("APPROVED");
+    expect(overridden.assignedEquipmentId).toBe(alternateEquipment!.id);
+
+    const audit = await prisma.auditEvent.findFirst({
+      where: { taskId: task!.id, action: "OVERRIDDEN" },
+    });
+    const details = JSON.parse(audit!.detailsJson);
+    expect(details.reason).toBe("Prefer a closer truck.");
+    expect(details.originalRecommendation.equipmentId).toBe(recommendation!.equipmentId);
+    expect(details.newDecision.equipmentId).toBe(alternateEquipment!.id);
+    expect(details.timestamp).toBeTruthy();
+  });
+});
