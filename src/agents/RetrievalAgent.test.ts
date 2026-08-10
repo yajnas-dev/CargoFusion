@@ -71,16 +71,28 @@ describe("RetrievalAgent (fake model, deterministic orchestration)", () => {
 describe.runIf(!!process.env.GEMINI_API_KEY)(
   "RetrievalAgent (live Gemini integration)",
   () => {
-    it("interprets a natural-language request and explains a real plan end-to-end", async () => {
+    it("interprets a natural-language request and explains a real plan end-to-end", async (ctx) => {
       const container = await prisma.container.findFirst({
         where: { retrievalEligible: true, status: "IN_YARD" },
       });
       expect(container).not.toBeNull();
 
       const agent = new RetrievalAgent(new MockTOSAdapter(), new GeminiClient());
-      const response = await agent.handleRequest(
-        `Please retrieve container ${container!.id} as soon as possible.`,
-      );
+      let response;
+      try {
+        response = await agent.handleRequest(
+          `Please retrieve container ${container!.id} as soon as possible.`,
+        );
+      } catch (err) {
+        // Free-tier Gemini quota is small (e.g. 20 requests/day/model) and
+        // shared across however many times this suite runs in a day —
+        // don't fail the build over exhausted quota, just skip visibly.
+        if (err instanceof Error && /RESOURCE_EXHAUSTED|429/.test(err.message)) {
+          ctx.skip();
+          return;
+        }
+        throw err;
+      }
 
       expect(response.interpreted.containerQuery.toUpperCase()).toContain(container!.id);
       expect(response.planResult?.status).toBe("READY");

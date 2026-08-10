@@ -9,7 +9,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 ## Status
 
-Phase 12 (supervisor approval workflow) complete. See the implementation plan for current phase.
+Phase 13 (worker/task simulation) complete. See the implementation plan for current phase.
 
 Note: the agent layer uses Gemini, not Claude — a user-directed deviation from the source report; see the implementation plan's Phase 10 section for why.
 
@@ -53,6 +53,7 @@ src/
   pipeline/               # Composes search + allocation + route + twin into one plan
   policy/                 # Confidence/policy gate: transparent HIGH/MEDIUM/LOW scoring
   approval/               # Supervisor Approve/Reject/Override workflow + audit log
+  worker/                 # Dispatch -> start -> confirm -> complete task lifecycle
   events/                # In-process EventBus (Kafka stand-in)
 ```
 
