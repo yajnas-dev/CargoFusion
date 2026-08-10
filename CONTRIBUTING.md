@@ -26,8 +26,9 @@ The architecture (see the implementation plan's "Prototype vs. Report" table) ke
 
 - `adapters/tos/` — only place that touches the simulated TOS. Never bypass `TOSAdapter`.
 - `adapters/sensors/` — only place that touches simulated sensor/IoT data. Never bypass `SensorProvider`.
+- `search/` — deterministic container search/matching (cache-first lookup, fuzzy match, confidence scoring). No LLM calls here.
 - `optimization/` — deterministic algorithms only (A*, scoring, forecasting). No LLM calls here.
-- `agents/` — Claude orchestration, disambiguation, explanation only. No numeric computation here — call into `optimization/` instead.
+- `agents/` — Claude orchestration, disambiguation, explanation only. No numeric computation here — call into `search/`/`optimization/` instead.
 - `twin/` — digital twin state and validation.
 
 ## Local Setup

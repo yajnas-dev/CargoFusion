@@ -95,7 +95,16 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 through 4 complete. **Next: Phase 5 — Container Search.**
+Phase 0 through 5 complete. **Next: Phase 6 — Yard Graph + A*.**
+
+### Phase 5 summary
+
+- New `src/search/` module (added to the module-boundary list in `CONTRIBUTING.md`) — deterministic search/matching logic doesn't fit `optimization/` (route/scheduling algorithms) or `agents/` (orchestration-only), so it gets its own boundary.
+- `ContainerSearchService`: cache-first lookup (in-memory `Map`, standing in for the Redis hot path from report section 7.2) with fallback to `TOSAdapter.searchContainers()` on a cache miss, per report section 8.1's Container Search agent spec.
+- Three-tier matching, all deterministic (`src/search/levenshtein.ts` for edit distance — no LLM involved): exact id (confidence 1.0) → substring (confidence scaled by query/id length overlap) → fuzzy (shrinking-prefix candidate search, ranked by Levenshtein distance, capped at edit distance 2).
+- Every match carries a transparent `confidence` (0-1) and `matchType`, ready to feed the Phase 11 policy gate.
+- Test coverage against the real seeded DB: empty query, exact match warms the cache and is served from it on repeat, substring matching, fuzzy recovery of a single-character typo, no-match case, cache growth.
+- `npm run test` (24 passing), `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 4 summary
 
