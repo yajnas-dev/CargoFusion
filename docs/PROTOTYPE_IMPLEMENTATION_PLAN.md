@@ -95,7 +95,18 @@ The repo is initialized for multiple contributors: git repo with remote `origin`
 
 ## Current Status
 
-Phase 0 and Phase 1 complete. **Next: Phase 2 — Domain Model & Database.**
+Phase 0, 1, and 2 complete. **Next: Phase 3 — Synthetic Data Generator.**
+
+### Phase 2 summary
+
+- Full domain model defined in `prisma/schema.prisma`: `Container`, `Equipment`, `YardBlock`/`YardNode`/`YardLane` (yard graph), `Worker`, `Task`, `Recommendation`, `AuditEvent`, `SensorEvent`, plus supporting enums (`ContainerStatus`, `TaskStatus`, `ConfidenceLevel`, etc.) matching the task-status state machine and confidence levels from the report.
+- SQLite database (`dev.db`, gitignored) with an initial migration (`prisma/migrations/`, tracked in git so all contributors apply the same schema).
+- Prisma 7 driver-adapter setup (`@prisma/adapter-better-sqlite3`) — schema-level `datasource.url` is no longer supported in Prisma 7, so the connection is configured in `prisma.config.ts` (for migrations) and `src/domain/db.ts` (for the app's shared client singleton).
+- `src/domain/types.ts` now re-exports the generated Prisma types (superseding the Phase 1 placeholders), plus two non-Prisma read shapes (`YardState`, `TOSEvent`) used by `TOSAdapter`.
+- `.env.example` documents `DATABASE_URL` (and reserves `ANTHROPIC_API_KEY` for Phase 10).
+- `npm run postinstall` runs `prisma generate` automatically so a fresh clone only needs `npm install` + `npm run db:migrate`.
+- Test coverage added: a Container create/read round-trip and a Task→Container foreign-key constraint check, both passing against the real SQLite database (not mocked).
+- `npm run test`, `npm run typecheck`, `npm run lint`, `npm run build` all pass.
 
 ### Phase 1 summary
 
