@@ -1,0 +1,110 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.liveRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--ops-muted);
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6e7681;
+  display: inline-block;
+}
+
+.liveDotOn {
+  background: #3fb950;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(63, 185, 80, 0);
+  }
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  background: var(--ops-map-bg);
+  border-radius: 10px;
+  border: 1px solid var(--ops-border);
+}
+
+.junction {
+  fill: #4a5063;
+}
+
+.nodeLabel {
+  font-size: 10px;
+  fill: var(--ops-muted);
+  letter-spacing: 0.05em;
+}
+
+.blockStack {
+  fill: #5b8def;
+  stroke: #2563eb;
+  stroke-width: 1;
+  transition: opacity 0.6s ease;
+}
+
+.blockLetter {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #fff;
+}
+
+.blockCountLabel {
+  font-size: 9px;
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.lane {
+  transition:
+    stroke 0.6s ease,
+    stroke-width 0.6s ease;
+}
+
+.equipmentMarker {
+  transition: transform 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legendLine {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+}

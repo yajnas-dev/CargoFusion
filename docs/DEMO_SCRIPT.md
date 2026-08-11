@@ -56,9 +56,9 @@ Click **Dispatch to Worker**. *"This assigns an available simulated worker and m
 
 In the second tab, pick the worker that was just assigned (their status will show `BUSY` — refresh the dropdown if needed, it re-polls every 5s). *"This is deliberately minimal — one active task, no clutter — matching the report's design principle for the mobile worker interface."* Click **Start Task**, then **Confirm Retrieval**.
 
-### 7. Back to the dashboard (30s)
+### 7. Back to the dashboard (45s)
 
-Task Tracking table now shows the task as `COMPLETED`. *"Full lifecycle: Requested → Planned → Approved → Dispatched → In Progress → Retrieved → Completed — and every single transition, including the approval and the AI's original recommendation, is in an immutable audit log."* (Query `AuditEvent` via `npm run db:studio` live if you want to show the raw trail.)
+Task Tracking table now shows the task as `RETRIEVED`, with a **Mark Completed** button on that row (also available in the recommendation panel above, if it's still open for this task). Click it. *"Full lifecycle: Requested → Planned → Approved → Dispatched → In Progress → Retrieved → Completed — and every single transition, including the approval and the AI's original recommendation, is in an immutable audit log."* (Query `AuditEvent` via `npm run db:studio` live if you want to show the raw trail.)
 
 ## Optional detour: live adaptation (Simulation Controls)
 

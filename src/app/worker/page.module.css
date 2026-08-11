@@ -5,6 +5,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-height: 100vh;
+  background: var(--ops-bg);
+  color: var(--ops-text);
 }
 
 .header {
@@ -19,24 +22,24 @@
 
 .backLink {
   font-size: 0.85rem;
-  color: var(--accent);
+  color: var(--ops-accent);
 }
 
 .select {
   width: 100%;
   padding: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ops-border);
   border-radius: 6px;
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--ops-panel-bg);
+  color: var(--ops-text);
   font-size: 1rem;
 }
 
 .taskCard {
-  border: 1px solid var(--border);
+  border: 1px solid var(--ops-border);
   border-radius: 10px;
   padding: 20px;
-  background: var(--panel-bg);
+  background: var(--ops-panel-bg);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -48,7 +51,7 @@
 }
 
 .location {
-  color: var(--muted);
+  color: var(--ops-muted);
   font-size: 0.95rem;
 }
 
@@ -56,7 +59,8 @@
   align-self: flex-start;
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--subtle-bg);
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -65,7 +69,7 @@
   padding: 14px;
   border: none;
   border-radius: 8px;
-  background: var(--accent);
+  background: var(--ops-accent);
   color: #fff;
   font-size: 1.05rem;
   cursor: pointer;
@@ -77,12 +81,12 @@
 }
 
 .empty {
-  color: var(--muted);
+  color: var(--ops-muted);
   text-align: center;
   padding: 40px 0;
 }
 
 .errorText {
-  color: #c0392b;
+  color: var(--ops-red);
   font-size: 0.88rem;
 }
