@@ -96,6 +96,10 @@ interface SessionUser {
   workerId?: string;
 }
 
+interface AgentAlertSummary {
+  status: "OPEN" | "ACKNOWLEDGED" | "APPLIED" | "DISMISSED";
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -125,6 +129,8 @@ export default function Dashboard() {
   const [overrideEquipmentId, setOverrideEquipmentId] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
   const [simRunning, setSimRunning] = useState(false);
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [openAgentAlertCount, setOpenAgentAlertCount] = useState(0);
   const [apiHealthy, setApiHealthy] = useState(true);
   const [clock, setClock] = useState("");
   const [activeNavId, setActiveNavId] = useState("top");
@@ -145,14 +151,20 @@ export default function Dashboard() {
 
   const refresh = useCallback(async () => {
     try {
-      const [yardData, taskData, simStatus] = await Promise.all([
+      const [yardData, taskData, simStatus, agentStatus, agentAlerts] = await Promise.all([
         api<YardSummary>("/api/yard"),
         api<{ tasks: TaskRow[] }>("/api/tasks"),
         api<{ running: boolean }>("/api/simulation/status"),
+        api<{ running: boolean }>("/api/agent/status"),
+        api<{ alerts: AgentAlertSummary[] }>("/api/agent/alerts"),
       ]);
       setYard(yardData);
       setTasks(taskData.tasks);
       setSimRunning(simStatus.running);
+      setAgentRunning(agentStatus.running);
+      setOpenAgentAlertCount(
+        agentAlerts.alerts.filter((a) => a.status === "OPEN" || a.status === "ACKNOWLEDGED").length,
+      );
       setApiHealthy(true);
     } catch {
       setApiHealthy(false);
@@ -181,6 +193,7 @@ export default function Dashboard() {
     [TOPICS.YARD_LANE_CHANGED]: debouncedRefresh,
     [TOPICS.YARD_EQUIPMENT_CHANGED]: debouncedRefresh,
     [TOPICS.AGENT_ALERT_RAISED]: debouncedRefresh,
+    [TOPICS.AGENT_ALERT_RESOLVED]: debouncedRefresh,
   });
 
   useEffect(() => {
@@ -235,7 +248,7 @@ export default function Dashboard() {
   const currentTask = tasks.find((t) => t.id === taskId);
   const activeStatus = currentTask?.status ?? result?.task?.status;
   const blockedLaneCount = yard ? yard.lanes.filter((l) => l.blocked).length : 0;
-  const alertCount = blockedLaneCount + (result?.planResult.twin?.issues.length ?? 0);
+  const alertCount = blockedLaneCount + openAgentAlertCount + (result?.planResult.twin?.issues.length ?? 0);
 
   return (
     <div className={styles.shell}>
@@ -261,6 +274,10 @@ export default function Dashboard() {
           <Link href="/simulation" className={styles.navItem}>
             Simulation
             {simRunning && <span className={styles.navLiveDot} />}
+          </Link>
+          <Link href="/agent" className={styles.navItem}>
+            Agent
+            {agentRunning && <span className={styles.navLiveDot} />}
           </Link>
           {DISABLED_NAV_ITEMS.map((item) => (
             <button
@@ -337,6 +354,20 @@ export default function Dashboard() {
               </div>
             </div>
             <span className={styles.simCtaArrow}>Open Full Simulation →</span>
+          </Link>
+
+          <Link href="/agent" className={styles.simCta}>
+            <div className={styles.simCtaLeft}>
+              <span className={styles.simCtaIcon}>🤖</span>
+              <div>
+                <h2>Container Management Agent</h2>
+                <p>
+                  {agentRunning ? "Watching yard/task state" : "Stopped — start it to watch for issues"}
+                  {` · ${openAgentAlertCount} open alert${openAgentAlertCount === 1 ? "" : "s"}`}
+                </p>
+              </div>
+            </div>
+            <span className={styles.simCtaArrow}>Open Agent →</span>
           </Link>
 
           <div className={styles.grid2}>

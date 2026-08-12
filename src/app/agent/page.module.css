@@ -1,0 +1,389 @@
+.shell {
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+  overflow: hidden;
+}
+
+/* Topbar */
+
+.topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.liveBadgeOn {
+  color: var(--ops-green);
+  border-color: rgba(63, 185, 80, 0.35);
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.liveBadgeOn .liveDot {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(63, 185, 80, 0);
+  }
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--ops-muted);
+}
+
+.blockedBadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(229, 72, 77, 0.15);
+  color: var(--ops-red);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.workerLink {
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.errorBar {
+  flex-shrink: 0;
+  padding: 8px 22px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+/* Body: alert feed + controls, fills the rest of the viewport */
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.feedArea {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feedHeading {
+  font-size: 0.85rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.emptyState {
+  color: var(--ops-muted);
+  font-size: 0.85rem;
+  padding: 20px;
+  border: 1px dashed var(--ops-border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.resolvedSection {
+  opacity: 0.75;
+}
+
+.alertList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.controls {
+  width: 380px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (max-width: 900px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .controls {
+    width: auto;
+    border-left: none;
+    border-top: 1px solid var(--ops-border);
+  }
+}
+
+/* Alert cards */
+
+.alertCard {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  border-left: 3px solid var(--ops-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.severityURGENT {
+  border-left-color: var(--ops-red);
+}
+
+.severityHIGH {
+  border-left-color: var(--ops-amber);
+}
+
+.severityMEDIUM {
+  border-left-color: var(--ops-accent);
+}
+
+.severityLOW {
+  border-left-color: var(--ops-border);
+}
+
+.alertCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.alertType {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  color: var(--ops-muted);
+}
+
+.alertSeverity {
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  color: var(--ops-muted);
+}
+
+.alertExplanation {
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.alertMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+}
+
+.resolvedTag {
+  font-style: italic;
+}
+
+.alertActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.applyButton {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  background: var(--ops-green);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dismissButton {
+  padding: 7px 14px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.applyButton:disabled,
+.dismissButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Stat grid */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.miniStat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+}
+
+.miniStatLabel {
+  font-size: 0.66rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.miniStatValue {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.miniStatValueRed {
+  color: var(--ops-red);
+}
+
+/* Sections */
+
+.section {
+  padding-top: 16px;
+  border-top: 1px solid var(--ops-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section h2 {
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+}
+
+.sectionHint {
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+  line-height: 1.4;
+  margin-top: -4px;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+}
+
+.numberInput {
+  padding: 8px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-size: 0.85rem;
+}
+
+.startButton,
+.stopButton {
+  padding: 9px 14px;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.startButton {
+  background: var(--ops-green);
+}
+
+.stopButton {
+  background: var(--ops-red);
+}
+
+.startButton:disabled,
+.stopButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
