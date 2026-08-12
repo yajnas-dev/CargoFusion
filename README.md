@@ -6,6 +6,7 @@ This is a **prototype**, not a production terminal deployment. All TOS, IoT, equ
 
 - [`Autonomous-Container-Search-Assistant-Engineering-Report-Combined.docx`](./Autonomous-Container-Search-Assistant-Engineering-Report-Combined.docx) / [`report.txt`](./report.txt) — source specification
 - [`docs/PROTOTYPE_IMPLEMENTATION_PLAN.md`](./docs/PROTOTYPE_IMPLEMENTATION_PLAN.md) — phased build plan and current status
+- [`docs/FEATURES.md`](./docs/FEATURES.md) — full technical reference: every feature and how it works
 - [`docs/DEMO_SCRIPT.md`](./docs/DEMO_SCRIPT.md) — presenter walkthrough for demoing this prototype
 
 ## Status
