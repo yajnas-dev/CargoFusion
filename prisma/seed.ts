@@ -2,6 +2,10 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { createRng, pick, randInt, shuffle, type Rng } from "../src/domain/seed/rng";
 import { LANE_SCALE_METERS } from "../src/domain/constants";
+import { hashPassword } from "../src/auth/passwords";
+
+/** Fixed demo password for every seeded User — documented in .env.example/README, not a real secret. */
+const DEMO_PASSWORD = "demo1234";
 
 /**
  * Synthetic terminal dataset generator (Phase 3). Deterministic from SEED so
@@ -142,9 +146,12 @@ async function main() {
 
   // Clear in FK-safe order.
   await prisma.auditEvent.deleteMany();
+  await prisma.agentAlert.deleteMany();
+  await prisma.tosWriteBackLog.deleteMany();
   await prisma.recommendation.deleteMany();
   await prisma.task.deleteMany();
   await prisma.sensorEvent.deleteMany();
+  await prisma.user.deleteMany(); // must precede Worker (User.workerId -> Worker.id)
   await prisma.equipment.deleteMany();
   await prisma.container.deleteMany();
   await prisma.worker.deleteMany();
@@ -245,6 +252,43 @@ async function main() {
   }));
   await prisma.worker.createMany({ data: workerData });
   console.log(`Workers: ${workerData.length}.`);
+
+  // Demo users — one per role, WORKER accounts bound to real seeded Worker
+  // rows so the worker app's session.workerId resolves to actual data.
+  const demoPasswordHash = await hashPassword(DEMO_PASSWORD);
+  await prisma.user.createMany({
+    data: [
+      { email: "operator@cargofusion.demo", name: "Demo Operator", role: "OPERATOR", passwordHash: demoPasswordHash },
+      {
+        email: "supervisor@cargofusion.demo",
+        name: "Demo Supervisor",
+        role: "SUPERVISOR",
+        passwordHash: demoPasswordHash,
+      },
+      {
+        email: "worker1@cargofusion.demo",
+        name: "Yard Worker 1",
+        role: "WORKER",
+        passwordHash: demoPasswordHash,
+        workerId: workerData[0].id,
+      },
+      {
+        email: "worker2@cargofusion.demo",
+        name: "Yard Worker 2",
+        role: "WORKER",
+        passwordHash: demoPasswordHash,
+        workerId: workerData[1].id,
+      },
+      {
+        email: "worker3@cargofusion.demo",
+        name: "Yard Worker 3",
+        role: "WORKER",
+        passwordHash: demoPasswordHash,
+        workerId: workerData[2].id,
+      },
+    ],
+  });
+  console.log(`Demo users: 5 (operator, supervisor, 3 workers) — password "${DEMO_PASSWORD}" for all.`);
 
   await prisma.$disconnect();
   console.log("Seed complete.");

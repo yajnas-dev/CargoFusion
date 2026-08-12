@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { prisma } from "@/domain/db";
+import { signSession, SESSION_COOKIE } from "@/auth/session";
 
+import { POST as loginRoute } from "@/app/api/auth/login/route";
 import { POST as submitRetrievalRequest } from "@/app/api/retrieval-requests/route";
 import { GET as getTasks } from "@/app/api/tasks/route";
 import { GET as getTaskDetail } from "@/app/api/tasks/[id]/route";
@@ -12,16 +14,43 @@ import { POST as confirmTask } from "@/app/api/tasks/[id]/confirm/route";
 import { POST as completeTask } from "@/app/api/tasks/[id]/complete/route";
 import { GET as getYard } from "@/app/api/yard/route";
 
-function jsonRequest(url: string, body: unknown) {
+function jsonRequest(url: string, body: unknown, cookie?: string) {
   return new NextRequest(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) },
     body: JSON.stringify(body),
   });
 }
 
 function idParams(id: string) {
   return { params: Promise.resolve({ id }) };
+}
+
+/** Signs in via the real login route (bcrypt + AuthService, end to end) and returns a `Cookie` header value. */
+async function loginCookie(email: string, password: string): Promise<string> {
+  const res = await loginRoute(jsonRequest("http://localhost/api/auth/login", { email, password }));
+  expect(res.status).toBe(200);
+  const token = res.cookies.get(SESSION_COOKIE)?.value;
+  expect(token).toBeTruthy();
+  return `${SESSION_COOKIE}=${token}`;
+}
+
+/**
+ * A worker session for whichever worker WorkerTaskService.dispatch() picks
+ * (nondeterministic — any of the 40 seeded workers, most without a linked
+ * demo User row). Signed directly rather than via the login route since
+ * this models "an authenticated session for this specific worker," not a
+ * credentials check (that's AuthService's own test's job).
+ */
+async function workerCookie(workerId: string): Promise<string> {
+  const token = await signSession({
+    sub: `e2e-${workerId}`,
+    email: `${workerId.toLowerCase()}@cargofusion.demo`,
+    name: "E2E Worker",
+    role: "WORKER",
+    workerId,
+  });
+  return `${SESSION_COOKIE}=${token}`;
 }
 
 /**
@@ -39,11 +68,14 @@ function idParams(id: string) {
  */
 describe("Full demo scenario: NL request -> completed retrieval -> audit trail", () => {
   it("completes the entire report-section-2 scenario with a consistent audit trail", async (ctx) => {
-    // 1-3: authenticate (out of scope for the prototype's approval model —
-    // requestedBy stands in for an authenticated operator identity) and
-    // 4-9: find the container, inspect yard/equipment state, generate
-    // candidates, compute route + equipment, check the digital twin.
-    // All of this happens inside the single POST below.
+    // 1-3: authenticate — a real login through AuthService/bcrypt against
+    // the seeded demo operator/supervisor accounts — and 4-9: find the
+    // container, inspect yard/equipment state, generate candidates,
+    // compute route + equipment, check the digital twin. Steps 4-9 all
+    // happen inside the single POST below.
+    const operatorCookie = await loginCookie("operator@cargofusion.demo", "demo1234");
+    const supervisorCookie = await loginCookie("supervisor@cargofusion.demo", "demo1234");
+
     const container = await prisma.container.findFirst({
       where: { retrievalEligible: true, status: "IN_YARD" },
     });
@@ -59,10 +91,11 @@ describe("Full demo scenario: NL request -> completed retrieval -> audit trail",
     let submitResponse;
     try {
       submitResponse = await submitRetrievalRequest(
-        jsonRequest("http://localhost/api/retrieval-requests", {
-          request: `Retrieve container ${container!.id}`,
-          requestedBy: "operator-e2e",
-        }),
+        jsonRequest(
+          "http://localhost/api/retrieval-requests",
+          { request: `Retrieve container ${container!.id}` },
+          operatorCookie,
+        ),
       );
     } catch (err) {
       if (err instanceof Error && /RESOURCE_EXHAUSTED|429/.test(err.message)) {
@@ -83,7 +116,7 @@ describe("Full demo scenario: NL request -> completed retrieval -> audit trail",
 
     // 12: supervisor approves.
     const approveResponse = await approveTask(
-      jsonRequest(`http://localhost/api/tasks/${taskId}/approve`, { actor: "supervisor-e2e" }),
+      jsonRequest(`http://localhost/api/tasks/${taskId}/approve`, {}, supervisorCookie),
       idParams(taskId),
     );
     expect(approveResponse.status).toBe(200);
@@ -91,7 +124,7 @@ describe("Full demo scenario: NL request -> completed retrieval -> audit trail",
 
     // 13: dispatched to a simulated worker.
     const dispatchResponse = await dispatchTask(
-      jsonRequest(`http://localhost/api/tasks/${taskId}/dispatch`, { actor: "supervisor-e2e" }),
+      jsonRequest(`http://localhost/api/tasks/${taskId}/dispatch`, {}, supervisorCookie),
       idParams(taskId),
     );
     expect(dispatchResponse.status).toBe(200);
@@ -99,6 +132,7 @@ describe("Full demo scenario: NL request -> completed retrieval -> audit trail",
     expect(dispatchData.task.status).toBe("DISPATCHED");
     const workerId: string = dispatchData.task.assignedWorkerId;
     expect(workerId).toBeTruthy();
+    const workerSessionCookie = await workerCookie(workerId);
 
     // 14: worker sees the task (mobile/worker interface -> GET .../active-task,
     // already covered by WorkerTaskService tests; here we confirm it via
@@ -109,20 +143,20 @@ describe("Full demo scenario: NL request -> completed retrieval -> audit trail",
 
     // 15: worker confirms retrieval (start, then confirm).
     const startResponse = await startTask(
-      jsonRequest(`http://localhost/api/tasks/${taskId}/start`, { workerId }),
+      jsonRequest(`http://localhost/api/tasks/${taskId}/start`, {}, workerSessionCookie),
       idParams(taskId),
     );
     expect((await startResponse.json()).task.status).toBe("IN_PROGRESS");
 
     const confirmResponse = await confirmTask(
-      jsonRequest(`http://localhost/api/tasks/${taskId}/confirm`, { workerId }),
+      jsonRequest(`http://localhost/api/tasks/${taskId}/confirm`, {}, workerSessionCookie),
       idParams(taskId),
     );
     expect((await confirmResponse.json()).task.status).toBe("RETRIEVED");
 
     // 16: system updates task status to COMPLETED.
     const completeResponse = await completeTask(
-      jsonRequest(`http://localhost/api/tasks/${taskId}/complete`, { actor: "supervisor-e2e" }),
+      jsonRequest(`http://localhost/api/tasks/${taskId}/complete`, {}, supervisorCookie),
       idParams(taskId),
     );
     expect((await completeResponse.json()).task.status).toBe("COMPLETED");

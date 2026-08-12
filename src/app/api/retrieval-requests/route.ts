@@ -5,40 +5,40 @@ import { RequestInterpreter } from "@/agents/RequestInterpreter";
 import { PlanExplainer } from "@/agents/PlanExplainer";
 import { fallbackExplain, fallbackInterpret } from "@/agents/fallback";
 import { SupervisorApprovalService } from "@/approval/SupervisorApprovalService";
+import { requireSessionUser } from "@/auth/requireSessionUser";
 import { prisma } from "@/domain/db";
 import { errorResponse } from "@/app/api/errorResponse";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const rawRequest = typeof body?.request === "string" ? body.request.trim() : "";
-  const requestedBy = typeof body?.requestedBy === "string" ? body.requestedBy.trim() : "";
-
-  if (!rawRequest || !requestedBy) {
-    return NextResponse.json(
-      { error: "Both 'request' and 'requestedBy' are required." },
-      { status: 400 },
-    );
-  }
-
-  let model: GeminiClient | null;
   try {
-    model = new GeminiClient();
-  } catch {
-    model = null; // no GEMINI_API_KEY configured
-  }
+    const session = await requireSessionUser(req);
 
-  const interpreted = model
-    ? await new RequestInterpreter(model).interpret(rawRequest).catch(() => fallbackInterpret(rawRequest))
-    : fallbackInterpret(rawRequest);
+    const body = await req.json().catch(() => null);
+    const rawRequest = typeof body?.request === "string" ? body.request.trim() : "";
+    const requestedBy = session.email;
 
-  if (interpreted.isAmbiguous || !interpreted.containerQuery) {
-    return NextResponse.json({
-      interpreted,
-      explanation: interpreted.clarifyingQuestion ?? "Could you provide a container ID?",
-    });
-  }
+    if (!rawRequest) {
+      return NextResponse.json({ error: "'request' is required." }, { status: 400 });
+    }
 
-  try {
+    let model: GeminiClient | null;
+    try {
+      model = new GeminiClient();
+    } catch {
+      model = null; // no GEMINI_API_KEY configured
+    }
+
+    const interpreted = model
+      ? await new RequestInterpreter(model).interpret(rawRequest).catch(() => fallbackInterpret(rawRequest))
+      : fallbackInterpret(rawRequest);
+
+    if (interpreted.isAmbiguous || !interpreted.containerQuery) {
+      return NextResponse.json({
+        interpreted,
+        explanation: interpreted.clarifyingQuestion ?? "Could you provide a container ID?",
+      });
+    }
+
     const approval = new SupervisorApprovalService(new MockTOSAdapter());
     const result = await approval.submitRequest({
       containerQuery: interpreted.containerQuery,

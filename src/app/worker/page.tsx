@@ -4,10 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./page.module.css";
 
-interface Worker {
+interface SessionUser {
   id: string;
+  email: string;
   name: string;
-  status: "AVAILABLE" | "BUSY" | "OFF_SHIFT";
+  role: "OPERATOR" | "SUPERVISOR" | "WORKER";
+  workerId?: string;
 }
 
 interface ActiveTask {
@@ -28,30 +30,23 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function WorkerApp() {
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [workerId, setWorkerId] = useState("");
+  const [session, setSession] = useState<SessionUser | null | undefined>(undefined);
   const [task, setTask] = useState<ActiveTask | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const loadWorkers = useCallback(async () => {
-    const data = await api<{ workers: Worker[] }>("/api/workers");
-    setWorkers(data.workers);
+  useEffect(() => {
+    api<{ user: SessionUser }>("/api/auth/me")
+      .then((data) => setSession(data.user))
+      .catch(() => setSession(null));
   }, []);
+
+  const workerId = session?.workerId;
 
   const loadActiveTask = useCallback(async (id: string) => {
     const data = await api<{ task: ActiveTask | null }>(`/api/workers/${id}/active-task`);
     setTask(data.task);
   }, []);
-
-  useEffect(() => {
-    const timeout = setTimeout(loadWorkers, 0);
-    const interval = setInterval(loadWorkers, 5000); // keeps each option's (AVAILABLE/BUSY) label current
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-    };
-  }, [loadWorkers]);
 
   useEffect(() => {
     if (!workerId) return;
@@ -68,8 +63,8 @@ export default function WorkerApp() {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/tasks/${task.id}/start`, { method: "POST", body: JSON.stringify({ workerId }) });
-      await loadActiveTask(workerId);
+      await api(`/api/tasks/${task.id}/start`, { method: "POST" });
+      await loadActiveTask(workerId!);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -82,8 +77,8 @@ export default function WorkerApp() {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/tasks/${task.id}/confirm`, { method: "POST", body: JSON.stringify({ workerId }) });
-      await loadActiveTask(workerId);
+      await api(`/api/tasks/${task.id}/confirm`, { method: "POST" });
+      await loadActiveTask(workerId!);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -100,52 +95,55 @@ export default function WorkerApp() {
         </Link>
       </header>
 
-      <select
-        aria-label="Select worker"
-        value={workerId}
-        onChange={(e) => {
-          setWorkerId(e.target.value);
-          setTask(undefined);
-        }}
-        className={styles.select}
-      >
-        <option value="">Select worker…</option>
-        {workers.map((w) => (
-          <option key={w.id} value={w.id}>
-            {w.name} ({w.status})
-          </option>
-        ))}
-      </select>
+      {session === undefined && <p className={styles.empty}>Loading…</p>}
 
-      {error && <p className={styles.errorText}>{error}</p>}
+      {session === null && <p className={styles.errorText}>Not signed in.</p>}
 
-      {workerId && task === null && <p className={styles.empty}>No active task right now.</p>}
+      {session && session.role !== "WORKER" && (
+        <p className={styles.errorText}>
+          Signed in as {session.name} ({session.role}) — this account isn&apos;t linked to a worker profile.
+        </p>
+      )}
 
-      {task && (
-        <div className={styles.taskCard}>
-          <span className={styles.statusBadge}>{task.status}</span>
-          <div className={styles.containerId}>{task.container.id}</div>
-          <div className={styles.location}>
-            Block {task.container.block}, row {task.container.row}, bay {task.container.bay}, tier{" "}
-            {task.container.tier}
-          </div>
-          {task.assignedEquipment && (
-            <div className={styles.location}>
-              Equipment: {task.assignedEquipment.id} ({task.assignedEquipment.type})
+      {session && session.role === "WORKER" && !session.workerId && (
+        <p className={styles.errorText}>This worker account has no linked worker profile.</p>
+      )}
+
+      {session?.role === "WORKER" && workerId && (
+        <>
+          <p className={styles.location}>Signed in as {session.name}</p>
+
+          {error && <p className={styles.errorText}>{error}</p>}
+
+          {task === null && <p className={styles.empty}>No active task right now.</p>}
+
+          {task && (
+            <div className={styles.taskCard}>
+              <span className={styles.statusBadge}>{task.status}</span>
+              <div className={styles.containerId}>{task.container.id}</div>
+              <div className={styles.location}>
+                Block {task.container.block}, row {task.container.row}, bay {task.container.bay}, tier{" "}
+                {task.container.tier}
+              </div>
+              {task.assignedEquipment && (
+                <div className={styles.location}>
+                  Equipment: {task.assignedEquipment.id} ({task.assignedEquipment.type})
+                </div>
+              )}
+
+              {task.status === "DISPATCHED" && (
+                <button className={styles.actionButton} disabled={busy} onClick={startTask}>
+                  Start Task
+                </button>
+              )}
+              {task.status === "IN_PROGRESS" && (
+                <button className={styles.actionButton} disabled={busy} onClick={confirmRetrieval}>
+                  Confirm Retrieval
+                </button>
+              )}
             </div>
           )}
-
-          {task.status === "DISPATCHED" && (
-            <button className={styles.actionButton} disabled={busy} onClick={startTask}>
-              Start Task
-            </button>
-          )}
-          {task.status === "IN_PROGRESS" && (
-            <button className={styles.actionButton} disabled={busy} onClick={confirmRetrieval}>
-              Confirm Retrieval
-            </button>
-          )}
-        </div>
+        </>
       )}
     </div>
   );

@@ -40,4 +40,17 @@ describe("synthetic data generator output", () => {
     });
     expect(equipment.every((e) => e.currentNode !== null)).toBe(true);
   });
+
+  it("seeds one demo user per role, with WORKER accounts linked to real Worker rows", async () => {
+    const users = await prisma.user.findMany({ include: { worker: true } });
+    expect(users.length).toBeGreaterThanOrEqual(5);
+
+    const byRole = (role: string) => users.filter((u) => u.role === role);
+    expect(byRole("OPERATOR").length).toBeGreaterThanOrEqual(1);
+    expect(byRole("SUPERVISOR").length).toBeGreaterThanOrEqual(1);
+
+    const workers = byRole("WORKER");
+    expect(workers.length).toBeGreaterThanOrEqual(1);
+    expect(workers.every((u) => u.workerId !== null && u.worker !== null)).toBe(true);
+  });
 });

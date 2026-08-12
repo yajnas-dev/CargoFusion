@@ -1,6 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { simulationEngine } from "@/simulation/SimulationEngine";
+import { requireSessionUser } from "@/auth/requireSessionUser";
+import { errorResponse } from "@/app/api/errorResponse";
 
-export async function GET() {
-  return NextResponse.json({ running: simulationEngine.isRunning() });
+export async function GET(req: NextRequest) {
+  try {
+    await requireSessionUser(req); // open to any authenticated role — just a status read
+    return NextResponse.json({ running: simulationEngine.isRunning() });
+  } catch (err) {
+    return errorResponse(err);
+  }
 }

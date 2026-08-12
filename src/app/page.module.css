@@ -232,6 +232,21 @@
   border-radius: 6px;
 }
 
+.signOutButton {
+  padding: 4px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--ops-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.signOutButton:hover {
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-text);
+}
+
 .content {
   padding: 22px 28px 60px;
   display: flex;

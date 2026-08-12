@@ -25,16 +25,6 @@
   color: var(--ops-accent);
 }
 
-.select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--ops-border);
-  border-radius: 6px;
-  background: var(--ops-panel-bg);
-  color: var(--ops-text);
-  font-size: 1rem;
-}
-
 .taskCard {
   border: 1px solid var(--ops-border);
   border-radius: 10px;

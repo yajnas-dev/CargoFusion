@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { MapEquipment, MapLane, MapNode } from "./YardMap";
 import styles from "./page.module.css";
 
@@ -85,7 +86,13 @@ interface TaskRow {
   recommendations: { confidenceLevel: string; explanation: string }[];
 }
 
-const REQUESTED_BY = "operator";
+interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  role: "OPERATOR" | "SUPERVISOR" | "WORKER";
+  workerId?: string;
+}
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -106,6 +113,7 @@ const NAV_LINKS: { label: string; targetId: string }[] = [
 ];
 
 export default function Dashboard() {
+  const router = useRouter();
   const [yard, setYard] = useState<YardSummary | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [requestText, setRequestText] = useState("");
@@ -119,6 +127,19 @@ export default function Dashboard() {
   const [clock, setClock] = useState("");
   const [activeNavId, setActiveNavId] = useState("top");
   const [toast, setToast] = useState<string | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  useEffect(() => {
+    api<{ user: SessionUser }>("/api/auth/me")
+      .then((data) => setUser(data.user))
+      .catch(() => setUser(null));
+  }, []);
+
+  async function logout() {
+    await api("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   const refresh = useCallback(async () => {
     try {
@@ -161,7 +182,7 @@ export default function Dashboard() {
     try {
       const data = await api<SubmitResponse>("/api/retrieval-requests", {
         method: "POST",
-        body: JSON.stringify({ request: requestText, requestedBy: REQUESTED_BY }),
+        body: JSON.stringify({ request: requestText }),
       });
       setResult(data);
       await refresh();
@@ -260,7 +281,10 @@ export default function Dashboard() {
               🔔
               {alertCount > 0 && <span className={styles.badge}>{alertCount}</span>}
             </span>
-            <span className={styles.operator}>Operator</span>
+            <span className={styles.operator}>{user ? `${user.name} (${user.role})` : "…"}</span>
+            <button type="button" className={styles.signOutButton} onClick={logout}>
+              Sign out
+            </button>
           </div>
         </header>
 
@@ -408,7 +432,7 @@ export default function Dashboard() {
                       <div className={styles.buttonRow}>
                         <button
                           className={styles.approveButton}
-                          onClick={() => runAction(`/api/tasks/${taskId}/approve`, { actor: "supervisor" })}
+                          onClick={() => runAction(`/api/tasks/${taskId}/approve`, {})}
                         >
                           Approve
                         </button>
@@ -416,7 +440,6 @@ export default function Dashboard() {
                           className={styles.rejectButton}
                           onClick={() =>
                             runAction(`/api/tasks/${taskId}/reject`, {
-                              actor: "supervisor",
                               reason: "Rejected by supervisor",
                             })
                           }
@@ -454,7 +477,6 @@ export default function Dashboard() {
                             disabled={!overrideEquipmentId || !overrideReason}
                             onClick={() =>
                               runAction(`/api/tasks/${taskId}/override`, {
-                                actor: "supervisor",
                                 reason: overrideReason,
                                 equipmentId: overrideEquipmentId,
                               })
@@ -471,7 +493,7 @@ export default function Dashboard() {
                     <div className={styles.approvalPanel}>
                       <button
                         className={styles.primaryButton}
-                        onClick={() => runAction(`/api/tasks/${taskId}/dispatch`, { actor: "supervisor" })}
+                        onClick={() => runAction(`/api/tasks/${taskId}/dispatch`, {})}
                       >
                         Dispatch to Worker
                       </button>
@@ -485,7 +507,7 @@ export default function Dashboard() {
                       </p>
                       <button
                         className={styles.approveButton}
-                        onClick={() => runAction(`/api/tasks/${taskId}/complete`, { actor: "supervisor" })}
+                        onClick={() => runAction(`/api/tasks/${taskId}/complete`, {})}
                       >
                         Mark Completed
                       </button>
@@ -527,7 +549,7 @@ export default function Dashboard() {
                       {t.status === "RETRIEVED" && (
                         <button
                           className={styles.simButton}
-                          onClick={() => runAction(`/api/tasks/${t.id}/complete`, { actor: "supervisor" })}
+                          onClick={() => runAction(`/api/tasks/${t.id}/complete`, {})}
                         >
                           Mark Completed
                         </button>
