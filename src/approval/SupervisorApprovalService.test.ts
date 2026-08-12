@@ -141,6 +141,61 @@ describe("SupervisorApprovalService", () => {
     expect(details.timestamp).toBeTruthy();
   });
 
+  it("override() rejects a nonexistent equipment id and leaves the task unchanged", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task } = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task!.id);
+
+    await expect(
+      service.override(task!.id, "supervisor-2", "typo'd equipment id", { equipmentId: "DOES-NOT-EXIST" }),
+    ).rejects.toThrow(/not in the synced cache/);
+
+    const unchanged = await prisma.task.findUniqueOrThrow({ where: { id: task!.id } });
+    expect(unchanged.status).toBe("PLANNED");
+    expect(unchanged.assignedEquipmentId).toBe(task!.assignedEquipmentId);
+  });
+
+  it("override() rejects equipment that's already double-booked to another active task", async () => {
+    const container1 = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task: task1, recommendation: recommendation1 } = await service.submitRequest({
+      containerQuery: container1!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task1!.id);
+
+    const container2 = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD", id: { not: container1!.id } },
+    });
+    const { task: task2 } = await service.submitRequest({
+      containerQuery: container2!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task2!.id);
+
+    // task2 tries to override onto the equipment task1's recommendation
+    // already committed to (task1 is still PLANNED, an ACTIVE_TASK_STATUS).
+    await expect(
+      service.override(task2!.id, "supervisor-2", "steal task1's equipment", {
+        equipmentId: recommendation1!.equipmentId,
+      }),
+    ).rejects.toThrow(/already committed to task/);
+
+    const unchanged = await prisma.task.findUniqueOrThrow({ where: { id: task2!.id } });
+    expect(unchanged.status).toBe("PLANNED");
+  });
+
   it("rejects approve()/reject()/override() on a task outside their valid status", async () => {
     const container = await prisma.container.findFirst({
       where: { retrievalEligible: true, status: "IN_YARD" },

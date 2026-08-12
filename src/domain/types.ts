@@ -34,7 +34,7 @@ export type {
   SuggestedActionType,
 } from "@/generated/prisma/client";
 
-import type { YardBlock, YardNode, YardLane } from "@/generated/prisma/client";
+import type { YardBlock, YardNode, YardLane, SensorEventType } from "@/generated/prisma/client";
 
 /**
  * Snapshot of the yard graph as read from the TOS's yard/stowage plan
@@ -53,7 +53,7 @@ export interface YardState {
  * Not persisted as its own table; consumed to update the local cache/twin.
  */
 export interface TOSEvent {
-  type: string;
+  type: SensorEventType;
   subjectId: string;
   occurredAt: string;
 }

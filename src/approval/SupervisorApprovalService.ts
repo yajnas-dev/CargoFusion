@@ -1,5 +1,7 @@
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import { RetrievalPlanningPipeline, type RetrievalPlanResult } from "@/pipeline/RetrievalPlanningPipeline";
+import { RouteOptimizationService } from "@/optimization/RouteOptimizationService";
+import { DigitalTwin } from "@/twin/DigitalTwin";
 import { ConfidenceGate, isReadyPlan, type ConfidenceAssessment } from "@/policy/ConfidenceGate";
 import { prisma } from "@/domain/db";
 import type { EquipmentType, Priority, Task, Recommendation } from "@/domain/types";
@@ -33,10 +35,14 @@ export interface OverrideDecision {
  */
 export class SupervisorApprovalService {
   private readonly pipeline: RetrievalPlanningPipeline;
+  private readonly routes: RouteOptimizationService;
+  private readonly twin: DigitalTwin;
   private readonly gate = new ConfidenceGate();
 
   constructor(private readonly tos: TOSAdapter) {
     this.pipeline = new RetrievalPlanningPipeline(tos);
+    this.routes = new RouteOptimizationService(tos);
+    this.twin = new DigitalTwin(tos);
   }
 
   async submitRequest(input: SubmitRequestInput): Promise<SubmitRequestResult> {
@@ -157,6 +163,10 @@ export class SupervisorApprovalService {
       throw new Error(`Task ${taskId} must be PLANNED or APPROVED to override (was ${currentTask.status}).`);
     }
 
+    if (newDecision.equipmentId) {
+      await this.assertEquipmentUsable(taskId, currentTask.containerId, newDecision.equipmentId);
+    }
+
     const task = await prisma.task.update({
       where: { id: taskId },
       data: {
@@ -186,5 +196,46 @@ export class SupervisorApprovalService {
     });
 
     return task;
+  }
+
+  /**
+   * Overriding to a specific equipment id previously skipped digital-twin
+   * validation entirely — a supervisor could override to equipment that's
+   * offline, already double-booked, or unreachable from the container's
+   * block, and it would be persisted anyway. Re-runs the same route +
+   * twin check the pipeline runs for a fresh recommendation, excluding
+   * this task's own reservation (`taskId`) so the check only flags a
+   * *different* task already holding the new equipment.
+   */
+  private async assertEquipmentUsable(taskId: string, containerId: string, equipmentId: string): Promise<void> {
+    const container = await this.tos.getContainer(containerId);
+    if (!container) {
+      throw new Error(`Cannot override task ${taskId}: container ${containerId} is not in the synced cache.`);
+    }
+
+    const [equipment] = await this.tos.getEquipment(equipmentId);
+    if (!equipment) {
+      throw new Error(`Cannot override to equipment ${equipmentId}: not in the synced cache.`);
+    }
+
+    const destinationNodeId = `BLOCK-${container.block}-ENTRY`;
+    const route = await this.routes.computeRoute(equipment.currentNodeId, destinationNodeId);
+    if (!route) {
+      throw new Error(
+        `Cannot override to equipment ${equipmentId}: no route from its current location to block ${container.block}.`,
+      );
+    }
+
+    const validation = await this.twin.validatePlan({
+      taskId,
+      containerId,
+      equipmentId,
+      routeNodeIds: route.path,
+    });
+    if (validation.recommendedAction !== "PROCEED") {
+      throw new Error(
+        `Cannot override to equipment ${equipmentId}: ${validation.issues.map((i) => i.message).join("; ")}`,
+      );
+    }
   }
 }

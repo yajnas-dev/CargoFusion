@@ -22,6 +22,7 @@ describe("WorkerTaskService", () => {
   const createdTaskIds: string[] = [];
   const mutatedContainerIds: string[] = [];
   const mutatedWorkerIds: string[] = [];
+  const mutatedEquipmentIds: string[] = [];
 
   afterEach(async () => {
     if (createdTaskIds.length > 0) {
@@ -41,6 +42,10 @@ describe("WorkerTaskService", () => {
       await prisma.worker.update({ where: { id }, data: { status: "AVAILABLE" } });
     }
     mutatedWorkerIds.length = 0;
+    for (const id of mutatedEquipmentIds) {
+      await prisma.equipment.update({ where: { id }, data: { status: "AVAILABLE" } });
+    }
+    mutatedEquipmentIds.length = 0;
   });
 
   it("carries a task through the full lifecycle: dispatch -> start -> confirm -> complete", async () => {
@@ -53,11 +58,17 @@ describe("WorkerTaskService", () => {
     const dispatched = await workerService.dispatch(taskId, "supervisor-1");
     expect(dispatched.status).toBe("DISPATCHED");
     expect(dispatched.assignedWorkerId).toBeTruthy();
+    expect(dispatched.assignedEquipmentId).toBeTruthy();
     const workerId = dispatched.assignedWorkerId!;
+    const equipmentId = dispatched.assignedEquipmentId!;
     mutatedWorkerIds.push(workerId);
+    mutatedEquipmentIds.push(equipmentId);
 
     const assignedWorker = await prisma.worker.findUniqueOrThrow({ where: { id: workerId } });
     expect(assignedWorker.status).toBe("BUSY");
+
+    const claimedEquipment = await prisma.equipment.findUniqueOrThrow({ where: { id: equipmentId } });
+    expect(claimedEquipment.status).toBe("BUSY");
 
     const activeWhileDispatched = await workerService.getActiveTaskForWorker(workerId);
     expect(activeWhileDispatched?.id).toBe(taskId);
@@ -74,6 +85,11 @@ describe("WorkerTaskService", () => {
 
     const freedWorker = await prisma.worker.findUniqueOrThrow({ where: { id: workerId } });
     expect(freedWorker.status).toBe("AVAILABLE");
+
+    // Regression: confirmRetrieval used to free the worker but never the
+    // equipment, leaving it permanently claimed after the task completed.
+    const freedEquipment = await prisma.equipment.findUniqueOrThrow({ where: { id: equipmentId } });
+    expect(freedEquipment.status).toBe("AVAILABLE");
 
     const activeAfterConfirm = await workerService.getActiveTaskForWorker(workerId);
     expect(activeAfterConfirm).toBeNull();

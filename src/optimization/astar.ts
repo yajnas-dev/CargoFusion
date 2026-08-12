@@ -1,4 +1,5 @@
 import type { YardGraph } from "@/optimization/YardGraph";
+import { MinHeap } from "@/optimization/MinHeap";
 
 export interface RouteEdge {
   fromNodeId: string;
@@ -35,45 +36,52 @@ export function findPath(
   const cameFrom = new Map<string, string>();
   const closed = new Set<string>();
 
-  // Small graph (dozens of nodes) — a linear scan for the lowest-fScore
-  // open node is simpler than a binary heap and plenty fast at this scale.
-  const open = new Map<string, number>([
-    [originId, graph.straightLineDistance(originId, destinationId)],
-  ]);
+  // Binary heap keyed by f-score. A plain heap has no O(log n) decrease-key,
+  // so a shorter path to a node already in the open set pushes a *new*
+  // entry rather than updating the old one; bestOpenF tracks each node's
+  // current-best f so a popped entry that's since been superseded (stale)
+  // is detected and skipped instead of reprocessed.
+  interface OpenEntry {
+    id: string;
+    f: number;
+  }
+  const open = new MinHeap<OpenEntry>((entry) => entry.f);
+  const bestOpenF = new Map<string, number>();
 
-  while (open.size > 0) {
-    let currentId: string | null = null;
-    let currentF = Infinity;
-    for (const [id, f] of open) {
-      if (f < currentF) {
-        currentF = f;
-        currentId = id;
-      }
+  const originF = graph.straightLineDistance(originId, destinationId);
+  open.push({ id: originId, f: originF });
+  bestOpenF.set(originId, originF);
+
+  let current = open.pop();
+  while (current !== undefined) {
+    const currentId = current.id;
+    // Stale entry: a better path to this node was found after this one was pushed.
+    if (current.f > bestOpenF.get(currentId)!) {
+      current = open.pop();
+      continue;
     }
-    if (currentId === null) break;
 
     if (currentId === destinationId) {
       return reconstructPath(graph, cameFrom, currentId, gScore.get(currentId)!);
     }
 
-    open.delete(currentId);
     closed.add(currentId);
 
     for (const edge of graph.neighbors(currentId)) {
       if (edge.blocked || closed.has(edge.toNodeId)) continue;
 
-      const tentativeG =
-        gScore.get(currentId)! + edge.distanceMeters * edge.congestionWeight;
+      const tentativeG = gScore.get(currentId)! + edge.distanceMeters * edge.congestionWeight;
       const knownG = gScore.get(edge.toNodeId);
       if (knownG === undefined || tentativeG < knownG) {
         cameFrom.set(edge.toNodeId, currentId);
         gScore.set(edge.toNodeId, tentativeG);
-        open.set(
-          edge.toNodeId,
-          tentativeG + graph.straightLineDistance(edge.toNodeId, destinationId),
-        );
+        const f = tentativeG + graph.straightLineDistance(edge.toNodeId, destinationId);
+        bestOpenF.set(edge.toNodeId, f);
+        open.push({ id: edge.toNodeId, f });
       }
     }
+
+    current = open.pop();
   }
 
   return null; // no path (fully blocked / disconnected)

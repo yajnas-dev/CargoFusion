@@ -1,4 +1,5 @@
 import { prisma } from "@/domain/db";
+import { Prisma } from "@/generated/prisma/client";
 import type { Task } from "@/domain/types";
 
 /**
@@ -36,6 +37,14 @@ export class WorkerTaskService {
         data: { status: "DISPATCHED", assignedWorkerId: worker.id },
       });
       await tx.worker.update({ where: { id: worker.id }, data: { status: "BUSY" } });
+      // Equipment must be claimed here too, symmetrically with the worker
+      // above — otherwise it stays AVAILABLE for the entire time it's
+      // actually out on this task (confirmRetrieval frees it back to
+      // AVAILABLE, so without this it never gets marked busy in the first
+      // place).
+      if (task.assignedEquipmentId) {
+        await tx.equipment.update({ where: { id: task.assignedEquipmentId }, data: { status: "BUSY" } });
+      }
       await tx.auditEvent.create({
         data: {
           taskId,
@@ -86,18 +95,31 @@ export class WorkerTaskService {
       throw new Error(`Task ${taskId} must be DISPATCHED or IN_PROGRESS to confirm (was ${task.status}).`);
     }
 
-    const [updatedTask] = await prisma.$transaction([
+    const ops: Prisma.PrismaPromise<unknown>[] = [
       prisma.task.update({ where: { id: taskId }, data: { status: "RETRIEVED" } }),
       prisma.container.update({
         where: { id: task.containerId },
         data: { status: "RETRIEVED", retrievalEligible: false },
       }),
       prisma.worker.update({ where: { id: workerId }, data: { status: "AVAILABLE" } }),
+    ];
+    // Equipment was claimed for this task's duration; free it back to
+    // AVAILABLE now that the retrieval is confirmed, same as the worker
+    // above. A task in DISPATCHED/IN_PROGRESS always has an assigned
+    // equipment (set when the plan was created), but the FK is nullable
+    // in the schema, so guard rather than assume.
+    if (task.assignedEquipmentId) {
+      ops.push(
+        prisma.equipment.update({ where: { id: task.assignedEquipmentId }, data: { status: "AVAILABLE" } }),
+      );
+    }
+    ops.push(
       prisma.auditEvent.create({
         data: { taskId, action: "WORKER_CONFIRMED", actor: workerId, detailsJson: "{}" },
       }),
-    ]);
+    );
 
+    const [updatedTask] = (await prisma.$transaction(ops)) as [Task, ...unknown[]];
     return updatedTask;
   }
 
