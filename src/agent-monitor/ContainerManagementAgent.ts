@@ -2,10 +2,14 @@ import { eventBus } from "@/events/InProcessEventBus";
 import { TOPICS } from "@/events/topics";
 import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
+import { createModelOrNull, type GenerativeModelClient } from "@/agents/GeminiClient";
 import { DETECTORS } from "@/agent-monitor/detectors";
+import { AlertRanker } from "@/agent-monitor/AlertRanker";
 import { fallbackRank } from "@/agent-monitor/AlertRankerFallback";
 import { AgentAlertService } from "@/agent-monitor/AgentAlertService";
-import { DEFAULT_CONFIG, type AgentMonitorConfig, type CandidateAlert } from "@/agent-monitor/types";
+import { DEFAULT_CONFIG, type AgentMonitorConfig, type CandidateAlert, type YardSnapshotForPrompt } from "@/agent-monitor/types";
+import { prisma } from "@/domain/db";
+import { ACTIVE_TASK_STATUSES } from "@/domain/constants";
 import type { AgentAlert } from "@/domain/types";
 
 const DEFAULT_TICK_INTERVAL_MS = 15000;
@@ -15,8 +19,8 @@ const TRIGGER_TOPICS = [TOPICS.YARD_LANE_CHANGED, TOPICS.YARD_EQUIPMENT_CHANGED,
 /**
  * Autonomous monitor + advisor for yard/task state (src/agent-monitor/).
  * Runs deterministic detectors (src/agent-monitor/detectors/) each cycle,
- * ranks/explains the results (fallbackRank here; Phase 8 adds an LLM
- * ranker in front of it), and persists them as AgentAlerts via
+ * ranks/explains the results with AlertRanker (Gemini) or fallbackRank
+ * when no model is available, and persists them as AgentAlerts via
  * AgentAlertService — it never mutates yard/task state itself. Mirrors
  * SimulationEngine's singleton start/stop/isRunning shape and its
  * deliberate opt-in principle: never auto-starts.
@@ -30,6 +34,7 @@ export class ContainerManagementAgent {
   constructor(
     private readonly tos: TOSAdapter = new MockTOSAdapter(),
     private readonly alerts: AgentAlertService = new AgentAlertService(),
+    private readonly model: GenerativeModelClient | null = createModelOrNull(),
   ) {}
 
   start(intervalMs: number = DEFAULT_TICK_INTERVAL_MS): void {
@@ -80,8 +85,26 @@ export class ContainerManagementAgent {
     const candidates: CandidateAlert[] = results.flat();
     if (candidates.length === 0) return [];
 
-    const ranked = fallbackRank(candidates);
+    const snapshot = await this.buildYardSnapshot();
+    const ranked = this.model
+      ? await new AlertRanker(this.model).rank(candidates, snapshot).catch(() => fallbackRank(candidates))
+      : fallbackRank(candidates);
+
     return this.alerts.raiseBatch(ranked);
+  }
+
+  private async buildYardSnapshot(): Promise<YardSnapshotForPrompt> {
+    const [yardState, activeTaskCount] = await Promise.all([
+      this.tos.getYardState(),
+      prisma.task.count({ where: { status: { in: [...ACTIVE_TASK_STATUSES] } } }),
+    ]);
+    const blockedLaneCount = yardState.lanes.filter((l) => l.blocked).length;
+    const avgCongestion =
+      yardState.lanes.length > 0
+        ? yardState.lanes.reduce((sum, l) => sum + l.congestionWeight, 0) / yardState.lanes.length
+        : 1;
+
+    return { activeTaskCount, blockedLaneCount, avgCongestion };
   }
 }
 

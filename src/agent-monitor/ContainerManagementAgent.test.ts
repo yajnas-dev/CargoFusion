@@ -1,7 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContainerManagementAgent } from "@/agent-monitor/ContainerManagementAgent";
 import { resetCongestionHotspotState } from "@/agent-monitor/detectors/congestionHotspot";
+import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
+import { AgentAlertService } from "@/agent-monitor/AgentAlertService";
 import { prisma } from "@/domain/db";
+import type { GenerativeModelClient } from "@/agents/GeminiClient";
+
+class FakeModel implements GenerativeModelClient {
+  jsonCalls = 0;
+  async generateJSON<T>(): Promise<T> {
+    this.jsonCalls++;
+    // Ranks every candidate at index order with a fixed score/explanation —
+    // enough to prove the LLM path (not the fallback) produced the result.
+    return [{ index: 0, rankScore: 0.77, explanation: "LLM-authored explanation" }] as T;
+  }
+  async generateText(): Promise<string> {
+    throw new Error("not used");
+  }
+}
 
 describe("ContainerManagementAgent", () => {
   it("start()/stop() toggle isRunning and start() is idempotent, and never auto-starts", () => {
@@ -52,12 +68,15 @@ describe("ContainerManagementAgent", () => {
       mutatedEquipmentIds.length = 0;
     });
 
-    it("raises an AgentAlert (+ audit event) for a detected condition, using the fallback ranker", async () => {
+    it("raises an AgentAlert (+ audit event) for a detected condition, using the fallback ranker when model is null", async () => {
       const equipment = await prisma.equipment.findFirstOrThrow({ where: { status: "AVAILABLE" } });
       await prisma.equipment.update({ where: { id: equipment.id }, data: { status: "BUSY" } });
       mutatedEquipmentIds.push(equipment.id);
 
-      const agent = new ContainerManagementAgent();
+      // Explicit null model, not the default createModelOrNull() — this
+      // repo has a real GEMINI_API_KEY configured, so relying on the
+      // default here would silently exercise the live-LLM path instead.
+      const agent = new ContainerManagementAgent(new MockTOSAdapter(), new AgentAlertService(), null);
       const raised = await agent.runCycle();
 
       const match = raised.find((a) => a.dedupeKey === `stuck-equipment:${equipment.id}`);
@@ -66,11 +85,51 @@ describe("ContainerManagementAgent", () => {
 
       expect(match!.status).toBe("OPEN");
       expect(match!.explanation.length).toBeGreaterThan(0); // fallback template, not empty
+      expect(match!.rankScore).toBe(0.25); // fallbackRank's SEVERITY_WEIGHT for LOW (this detector's fixed severity)
 
       const audit = await prisma.auditEvent.findFirst({
         where: { agentAlertId: match!.id, action: "AGENT_ALERT_RAISED" },
       });
       expect(audit).not.toBeNull();
+    });
+
+    it("uses AlertRanker (not the fallback) when a model is provided", async () => {
+      const equipment = await prisma.equipment.findFirstOrThrow({ where: { status: "AVAILABLE" } });
+      await prisma.equipment.update({ where: { id: equipment.id }, data: { status: "BUSY" } });
+      mutatedEquipmentIds.push(equipment.id);
+
+      const fake = new FakeModel();
+      const agent = new ContainerManagementAgent(new MockTOSAdapter(), new AgentAlertService(), fake);
+      const raised = await agent.runCycle();
+      createdAlertIds.push(...raised.map((a) => a.id));
+
+      expect(fake.jsonCalls).toBeGreaterThan(0);
+      const match = raised.find((a) => a.dedupeKey === `stuck-equipment:${equipment.id}`);
+      expect(match).toBeDefined();
+      expect(match!.explanation).toBe("LLM-authored explanation");
+      expect(match!.rankScore).toBe(0.77);
+    });
+
+    it("falls back to fallbackRank if the model throws", async () => {
+      const equipment = await prisma.equipment.findFirstOrThrow({ where: { status: "AVAILABLE" } });
+      await prisma.equipment.update({ where: { id: equipment.id }, data: { status: "BUSY" } });
+      mutatedEquipmentIds.push(equipment.id);
+
+      const throwingModel: GenerativeModelClient = {
+        generateJSON: async () => {
+          throw new Error("simulated model failure");
+        },
+        generateText: async () => {
+          throw new Error("not used");
+        },
+      };
+      const agent = new ContainerManagementAgent(new MockTOSAdapter(), new AgentAlertService(), throwingModel);
+      const raised = await agent.runCycle();
+      createdAlertIds.push(...raised.map((a) => a.id));
+
+      const match = raised.find((a) => a.dedupeKey === `stuck-equipment:${equipment.id}`);
+      expect(match).toBeDefined(); // still produced an alert despite the model throwing
+      expect(match!.rankScore).toBe(0.25); // fallback path's severity-weighted score
     });
 
     it("returns [] when no detector finds anything", async () => {

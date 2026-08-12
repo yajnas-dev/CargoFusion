@@ -43,3 +43,10 @@ export interface RankedAlert {
   rankScore: number;
   explanation: string;
 }
+
+/** Minimal yard context given to AlertRanker's prompt — enough to rank sensibly, not a full state dump. */
+export interface YardSnapshotForPrompt {
+  activeTaskCount: number;
+  blockedLaneCount: number;
+  avgCongestion: number;
+}
