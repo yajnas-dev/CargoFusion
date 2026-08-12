@@ -1,4 +1,6 @@
 import { prisma } from "@/domain/db";
+import { eventBus } from "@/events/InProcessEventBus";
+import { TOPICS } from "@/events/topics";
 import type { Equipment, EquipmentStatus, SensorEvent, YardLane } from "@/domain/types";
 
 const MIN_CONGESTION = 1.0;
@@ -15,11 +17,15 @@ const MAX_CONGESTION = 3.0;
  */
 export class DemoControls {
   async blockLane(laneId: string): Promise<YardLane> {
-    return prisma.yardLane.update({ where: { id: laneId }, data: { blocked: true } });
+    const lane = await prisma.yardLane.update({ where: { id: laneId }, data: { blocked: true } });
+    eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId });
+    return lane;
   }
 
   async unblockLane(laneId: string): Promise<YardLane> {
-    return prisma.yardLane.update({ where: { id: laneId }, data: { blocked: false } });
+    const lane = await prisma.yardLane.update({ where: { id: laneId }, data: { blocked: false } });
+    eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId });
+    return lane;
   }
 
   async unblockAllLanes(): Promise<number> {
@@ -27,6 +33,7 @@ export class DemoControls {
       where: { blocked: true },
       data: { blocked: false },
     });
+    if (result.count > 0) eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: null });
     return result.count;
   }
 
@@ -43,7 +50,9 @@ export class DemoControls {
       : pickRandom(await prisma.yardLane.findMany());
     if (!lane) return null;
     const congestionWeight = clamp(lane.congestionWeight * multiplier, MIN_CONGESTION, MAX_CONGESTION);
-    return prisma.yardLane.update({ where: { id: lane.id }, data: { congestionWeight } });
+    const updated = await prisma.yardLane.update({ where: { id: lane.id }, data: { congestionWeight } });
+    eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: lane.id });
+    return updated;
   }
 
   /** Small random walk applied to every lane's congestion — the "ambient traffic" effect. */
@@ -58,11 +67,13 @@ export class DemoControls {
         updated++;
       }
     }
+    if (updated > 0) eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: null });
     return updated;
   }
 
   async resetCongestion(): Promise<number> {
     const result = await prisma.yardLane.updateMany({ data: { congestionWeight: MIN_CONGESTION } });
+    if (result.count > 0) eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: null });
     return result.count;
   }
 
@@ -73,11 +84,18 @@ export class DemoControls {
     if (!equipment) return null;
 
     const targetNodeId = nodeId ?? (await this.randomNeighborNode(equipment.currentNodeId));
-    return prisma.equipment.update({ where: { id: equipment.id }, data: { currentNodeId: targetNodeId } });
+    const updated = await prisma.equipment.update({
+      where: { id: equipment.id },
+      data: { currentNodeId: targetNodeId },
+    });
+    eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId: equipment.id });
+    return updated;
   }
 
   async setEquipmentStatus(equipmentId: string, status: EquipmentStatus): Promise<Equipment> {
-    return prisma.equipment.update({ where: { id: equipmentId }, data: { status } });
+    const updated = await prisma.equipment.update({ where: { id: equipmentId }, data: { status } });
+    eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId });
+    return updated;
   }
 
   /** Toggles a random non-BUSY equipment between AVAILABLE and OFFLINE. */
@@ -97,7 +115,7 @@ export class DemoControls {
       : pickRandom(await prisma.container.findMany({ take: 200 }));
     if (!container) return null;
 
-    return prisma.sensorEvent.create({
+    const event = await prisma.sensorEvent.create({
       data: {
         type: "RFID_CHECKPOINT",
         subjectId: container.id,
@@ -105,6 +123,8 @@ export class DemoControls {
         payloadJson: JSON.stringify({ simulated: true }),
       },
     });
+    eventBus.publish(TOPICS.SENSOR_EVENT, { subjectId: container.id, type: event.type });
+    return event;
   }
 
   private async randomNeighborNode(currentNodeId: string): Promise<string> {

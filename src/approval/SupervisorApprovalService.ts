@@ -4,6 +4,8 @@ import { RouteOptimizationService } from "@/optimization/RouteOptimizationServic
 import { DigitalTwin } from "@/twin/DigitalTwin";
 import { ConfidenceGate, isReadyPlan, type ConfidenceAssessment } from "@/policy/ConfidenceGate";
 import { prisma } from "@/domain/db";
+import { eventBus } from "@/events/InProcessEventBus";
+import { TOPICS } from "@/events/topics";
 import type { EquipmentType, Priority, Task, Recommendation } from "@/domain/types";
 
 export interface SubmitRequestInput {
@@ -81,6 +83,7 @@ export class SupervisorApprovalService {
         detailsJson: JSON.stringify({ containerQuery: input.containerQuery, status: planResult.status }),
       },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId: task.id, status: task.status });
 
     if (!isReadyPlan(planResult)) {
       return { planResult, task };
@@ -110,6 +113,7 @@ export class SupervisorApprovalService {
         detailsJson: JSON.stringify({ recommendationId: recommendation.id, confidenceLevel: confidence.level }),
       },
     });
+    eventBus.publish(TOPICS.RECOMMENDATION_CREATED, { taskId: task.id, recommendationId: recommendation.id });
 
     return { planResult, task, recommendation, confidence };
   }
@@ -127,6 +131,7 @@ export class SupervisorApprovalService {
     await prisma.auditEvent.create({
       data: { taskId, action: "APPROVED", actor, detailsJson: "{}" },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
     return task;
   }
 
@@ -143,6 +148,34 @@ export class SupervisorApprovalService {
     await prisma.auditEvent.create({
       data: { taskId, action: "REJECTED", actor, detailsJson: JSON.stringify({ reason }) },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
+    return task;
+  }
+
+  /**
+   * Updates a task's priority outside the normal request flow — the Apply
+   * action for the Container Management Agent's REPRIORITIZE_TASK
+   * suggestion (src/agent-monitor/AgentAlertService.ts), but a plain
+   * supervisor action in its own right, so it's exposed as a first-class
+   * method rather than something only the agent can reach.
+   */
+  async reprioritize(taskId: string, actor: string, newPriority: Priority): Promise<Task> {
+    const current = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+    if (current.priority === newPriority) return current;
+
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data: { priority: newPriority },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        taskId,
+        action: "STATUS_CHANGED",
+        actor,
+        detailsJson: JSON.stringify({ field: "priority", from: current.priority, to: newPriority }),
+      },
+    });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
     return task;
   }
 
@@ -194,6 +227,7 @@ export class SupervisorApprovalService {
         }),
       },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
 
     return task;
   }

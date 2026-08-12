@@ -1,6 +1,9 @@
 import { prisma } from "@/domain/db";
 import { Prisma } from "@/generated/prisma/client";
-import type { Task } from "@/domain/types";
+import { eventBus } from "@/events/InProcessEventBus";
+import { TOPICS } from "@/events/topics";
+import { ACTIVE_TASK_STATUSES } from "@/domain/constants";
+import type { Equipment, Task } from "@/domain/types";
 
 /**
  * Carries an APPROVED task through dispatch and worker confirmation to
@@ -55,6 +58,12 @@ export class WorkerTaskService {
       });
 
       return updatedTask;
+    }).then((updatedTask) => {
+      eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
+      if (updatedTask.assignedEquipmentId) {
+        eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId: updatedTask.assignedEquipmentId });
+      }
+      return updatedTask;
     });
   }
 
@@ -76,6 +85,7 @@ export class WorkerTaskService {
         },
       }),
     ]);
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
 
     return updatedTask;
   }
@@ -120,6 +130,10 @@ export class WorkerTaskService {
     );
 
     const [updatedTask] = (await prisma.$transaction(ops)) as [Task, ...unknown[]];
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
+    if (task.assignedEquipmentId) {
+      eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId: task.assignedEquipmentId });
+    }
     return updatedTask;
   }
 
@@ -140,8 +154,42 @@ export class WorkerTaskService {
         },
       }),
     ]);
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
 
     return updatedTask;
+  }
+
+  /**
+   * Frees equipment stuck in BUSY with no active task actually claiming it
+   * — the Apply action for the Container Management Agent's
+   * FREE_STUCK_EQUIPMENT suggestion (src/agent-monitor/AgentAlertService.ts).
+   * Re-checks the condition at apply time (not just at detection time) to
+   * guard against a race where some other task claimed the equipment in
+   * between.
+   */
+  async releaseEquipment(equipmentId: string, actor: string): Promise<Equipment> {
+    const claimingTask = await prisma.task.findFirst({
+      where: { assignedEquipmentId: equipmentId, status: { in: [...ACTIVE_TASK_STATUSES] } },
+    });
+    if (claimingTask) {
+      throw new Error(
+        `Cannot release equipment ${equipmentId}: task ${claimingTask.id} is actively using it (status ${claimingTask.status}).`,
+      );
+    }
+
+    const equipment = await prisma.equipment.update({
+      where: { id: equipmentId },
+      data: { status: "AVAILABLE" },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        action: "STATUS_CHANGED",
+        actor,
+        detailsJson: JSON.stringify({ field: "equipment.status", equipmentId, to: "AVAILABLE" }),
+      },
+    });
+    eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId });
+    return equipment;
   }
 
   /** The single active task a worker's mobile view should show, if any. */
