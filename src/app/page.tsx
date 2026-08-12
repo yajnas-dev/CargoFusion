@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import YardMap, { type MapEquipment, type MapLane, type MapNode } from "./YardMap";
+import type { MapEquipment, MapLane, MapNode } from "./YardMap";
 import styles from "./page.module.css";
 
 type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -102,9 +102,7 @@ const DISABLED_NAV_ITEMS = ["Equipment", "Trucks", "Alerts", "Analytics", "Setti
 const NAV_LINKS: { label: string; targetId: string }[] = [
   { label: "Dashboard", targetId: "top" },
   { label: "Container Search", targetId: "search-card" },
-  { label: "Yard Map", targetId: "yard-map-card" },
   { label: "Operations", targetId: "operations-card" },
-  { label: "Simulation", targetId: "simulation-panel" },
 ];
 
 export default function Dashboard() {
@@ -198,7 +196,8 @@ export default function Dashboard() {
   const taskId = result?.task?.id;
   const currentTask = tasks.find((t) => t.id === taskId);
   const activeStatus = currentTask?.status ?? result?.task?.status;
-  const alertCount = yard ? yard.lanes.filter((l) => l.blocked).length + (result?.planResult.twin?.issues.length ?? 0) : 0;
+  const blockedLaneCount = yard ? yard.lanes.filter((l) => l.blocked).length : 0;
+  const alertCount = blockedLaneCount + (result?.planResult.twin?.issues.length ?? 0);
 
   return (
     <div className={styles.shell}>
@@ -221,6 +220,10 @@ export default function Dashboard() {
               {link.label}
             </a>
           ))}
+          <Link href="/simulation" className={styles.navItem}>
+            Simulation
+            {simRunning && <span className={styles.navLiveDot} />}
+          </Link>
           {DISABLED_NAV_ITEMS.map((item) => (
             <button
               key={item}
@@ -281,13 +284,28 @@ export default function Dashboard() {
 
           {error && <p className={styles.errorText}>{error}</p>}
 
-          <div className={styles.grid3}>
+          <Link href="/simulation" className={styles.simCta}>
+            <div className={styles.simCtaLeft}>
+              <span className={styles.simCtaIcon}>🗺️</span>
+              <div>
+                <h2>Yard Simulation</h2>
+                <p>
+                  {simRunning ? "Live background simulation running" : "Static — start the simulator for live drift"}
+                  {yard ? ` · ${blockedLaneCount} lane${blockedLaneCount === 1 ? "" : "s"} blocked` : ""}
+                </p>
+              </div>
+            </div>
+            <span className={styles.simCtaArrow}>Open Full Simulation →</span>
+          </Link>
+
+          <div className={styles.grid2}>
             <div className={styles.col} id="search-card">
               <div className={styles.panel}>
                 <h2>Retrieval Request</h2>
                 <form onSubmit={submitRequest} className={styles.requestForm}>
                   <input
                     type="text"
+                    aria-label="Retrieval request"
                     placeholder='e.g. "MSKU1234567" or "Get it out as quickly as possible"'
                     value={requestText}
                     onChange={(e) => setRequestText(e.target.value)}
@@ -334,24 +352,6 @@ export default function Dashboard() {
                   {activeStatus === "REJECTED" && <div className={styles.rejectedBanner}>Request rejected</div>}
                 </div>
               )}
-            </div>
-
-            <div className={styles.col} id="yard-map-card">
-              <div className={styles.panel}>
-                <h2>Yard Map (Live)</h2>
-                {yard ? (
-                  <YardMap
-                    nodes={yard.nodes}
-                    lanes={yard.lanes}
-                    equipment={yard.equipment}
-                    containerCountsByBlock={yard.containerCountsByBlock}
-                    highlightPath={result?.planResult.route?.path}
-                    live={simRunning}
-                  />
-                ) : (
-                  <p>Loading…</p>
-                )}
-              </div>
             </div>
 
             <div className={styles.col} id="operations-card">
@@ -427,6 +427,7 @@ export default function Dashboard() {
                       {result.planResult.equipmentCandidates && result.planResult.equipmentCandidates.length > 1 && (
                         <div className={styles.overrideForm}>
                           <select
+                            aria-label="Alternate equipment"
                             value={overrideEquipmentId}
                             onChange={(e) => setOverrideEquipmentId(e.target.value)}
                             className={styles.select}
@@ -442,6 +443,7 @@ export default function Dashboard() {
                           </select>
                           <input
                             type="text"
+                            aria-label="Reason for override"
                             placeholder="Reason for override"
                             value={overrideReason}
                             onChange={(e) => setOverrideReason(e.target.value)}
@@ -491,40 +493,6 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className={styles.panel} id="simulation-panel">
-            <h2>Simulation Controls</h2>
-            <p className={styles.simDescription}>
-              Trigger yard events on demand, or start the background simulator for continuous ambient activity
-              (equipment moves, congestion drifts, occasional RFID checkpoints and availability changes).
-            </p>
-            <div className={styles.simButtonRow}>
-              <button
-                className={simRunning ? styles.rejectButton : styles.approveButton}
-                onClick={() => runAction(simRunning ? "/api/simulation/stop" : "/api/simulation/start")}
-              >
-                {simRunning ? "Stop Background Simulation" : "Start Background Simulation"}
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/congestion", {})}>
-                Simulate Congestion Spike
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/block-lane", {})}>
-                Block Random Lane
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/unblock-lanes")}>
-                Unblock All Lanes
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/move-equipment", {})}>
-                Move Random Equipment
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/rfid-event", {})}>
-                Trigger RFID Event
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/equipment-status", {})}>
-                Flap Equipment Availability
-              </button>
             </div>
           </div>
 

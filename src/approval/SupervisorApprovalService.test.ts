@@ -140,4 +140,43 @@ describe("SupervisorApprovalService", () => {
     expect(details.newDecision.equipmentId).toBe(alternateEquipment!.id);
     expect(details.timestamp).toBeTruthy();
   });
+
+  it("rejects approve()/reject()/override() on a task outside their valid status", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task } = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task!.id);
+
+    // PLANNED -> APPROVED -> REJECTED is not a legal path, but drive the
+    // task there anyway to get it out of PLANNED for this test.
+    await service.approve(task!.id, "supervisor-1");
+
+    // Now APPROVED: re-approving (already past PLANNED) must be rejected.
+    await expect(service.approve(task!.id, "supervisor-1")).rejects.toThrow(/must be PLANNED/);
+
+    // APPROVED is still a legal override target (equipment can be swapped before dispatch).
+    const alternateEquipment = await prisma.equipment.findFirst({
+      where: { type: "YARD_TRUCK", status: "AVAILABLE" },
+    });
+    await service.override(task!.id, "supervisor-2", "swap before dispatch", {
+      equipmentId: alternateEquipment!.id,
+    });
+
+    // Force the task to a terminal state, then confirm every guarded action rejects it.
+    await prisma.task.update({ where: { id: task!.id }, data: { status: "COMPLETED" } });
+
+    await expect(service.approve(task!.id, "supervisor-1")).rejects.toThrow(/must be PLANNED/);
+    await expect(service.reject(task!.id, "supervisor-1", "too late")).rejects.toThrow(
+      /must be PLANNED or REQUESTED/,
+    );
+    await expect(
+      service.override(task!.id, "supervisor-1", "too late", { equipmentId: alternateEquipment!.id }),
+    ).rejects.toThrow(/must be PLANNED or APPROVED/);
+  });
 });

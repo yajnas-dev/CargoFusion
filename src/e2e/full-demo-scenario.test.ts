@@ -38,7 +38,7 @@ function idParams(id: string) {
  * produced was actionable).
  */
 describe("Full demo scenario: NL request -> completed retrieval -> audit trail", () => {
-  it("completes the entire report-section-2 scenario with a consistent audit trail", async () => {
+  it("completes the entire report-section-2 scenario with a consistent audit trail", async (ctx) => {
     // 1-3: authenticate (out of scope for the prototype's approval model —
     // requestedBy stands in for an authenticated operator identity) and
     // 4-9: find the container, inspect yard/equipment state, generate
@@ -49,12 +49,28 @@ describe("Full demo scenario: NL request -> completed retrieval -> audit trail",
     });
     expect(container).not.toBeNull();
 
-    const submitResponse = await submitRetrievalRequest(
-      jsonRequest("http://localhost/api/retrieval-requests", {
-        request: `Retrieve container ${container!.id}`,
-        requestedBy: "operator-e2e",
-      }),
-    );
+    // Same as RetrievalAgent's live-Gemini test: when GEMINI_API_KEY is
+    // configured, this route makes real interpret+explain calls, which can
+    // legitimately take well past Vitest's 5s default (observed up to
+    // ~27s standalone) or hit the small free-tier daily quota. This test
+    // otherwise doesn't care which path (Gemini or its deterministic
+    // fallback) produced the plan, so skip visibly on quota exhaustion
+    // rather than failing the build over it.
+    let submitResponse;
+    try {
+      submitResponse = await submitRetrievalRequest(
+        jsonRequest("http://localhost/api/retrieval-requests", {
+          request: `Retrieve container ${container!.id}`,
+          requestedBy: "operator-e2e",
+        }),
+      );
+    } catch (err) {
+      if (err instanceof Error && /RESOURCE_EXHAUSTED|429/.test(err.message)) {
+        ctx.skip();
+        return;
+      }
+      throw err;
+    }
     expect(submitResponse.status).toBe(200);
     const submitData = await submitResponse.json();
 
@@ -153,5 +169,5 @@ describe("Full demo scenario: NL request -> completed retrieval -> audit trail",
       data: { status: "IN_YARD", retrievalEligible: true },
     });
     await prisma.worker.update({ where: { id: workerId }, data: { status: "AVAILABLE" } });
-  });
+  }, 60_000); // two live Gemini calls (interpret + explain) on the request-submission step
 });

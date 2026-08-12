@@ -33,12 +33,16 @@ interface Props {
   /** Node ids, origin -> destination, for the most recently computed route. */
   highlightPath?: string[];
   live: boolean;
+  /** Toggles a lane's blocked state directly from the map — precise, operator-picked, not the random "block-lane" demo action. */
+  onLaneToggle?: (lane: MapLane) => void;
+  /** Extra class on the root wrapper — used by the simulation page to stretch this into a flex-sized container that fills the viewport. */
+  className?: string;
 }
 
-const SCALE_X = 130;
-const SCALE_Y = 190;
-const PAD = 70;
-const STACK_HEIGHT = 46;
+const SCALE_X = 160;
+const SCALE_Y = 340;
+const PAD = 80;
+const STACK_HEIGHT = 54;
 
 function congestionColor(weight: number, blocked: boolean): string {
   if (blocked) return "#e5484d";
@@ -61,7 +65,16 @@ function equipmentColor(status: MapEquipment["status"]): string {
  * marker along a highlighted path is a looping visual affordance for
  * "this is the planned route," not a live GPS feed.
  */
-export default function YardMap({ nodes, lanes, equipment, containerCountsByBlock, highlightPath, live }: Props) {
+export default function YardMap({
+  nodes,
+  lanes,
+  equipment,
+  containerCountsByBlock,
+  highlightPath,
+  live,
+  onLaneToggle,
+  className,
+}: Props) {
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const project = (n: MapNode) => ({ px: (n.x + 1) * SCALE_X + PAD, py: n.y * SCALE_Y + PAD });
 
@@ -80,35 +93,67 @@ export default function YardMap({ nodes, lanes, equipment, containerCountsByBloc
 
   const routePoints =
     highlightPath && highlightPath.length > 1
-      ? highlightPath.map((id) => project(nodeById.get(id)!)).filter(Boolean)
+      ? highlightPath
+          .map((id) => nodeById.get(id))
+          .filter((n): n is MapNode => n !== undefined)
+          .map(project)
       : [];
 
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} ${className ?? ""}`}>
       <div className={styles.liveRow}>
         <span className={`${styles.liveDot} ${live ? styles.liveDotOn : ""}`} />
         <span>{live ? "Live simulation running" : "Static (start simulation for live drift)"}</span>
       </div>
-      <svg viewBox={`0 0 ${width} ${height}`} className={styles.svg} role="img" aria-label="Yard map">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMidYMid meet"
+        className={styles.svg}
+        role="img"
+        aria-label="Yard map"
+      >
         {lanes.map((lane) => {
           const from = nodeById.get(lane.fromNodeId);
           const to = nodeById.get(lane.toNodeId);
           if (!from || !to) return null;
           const a = project(from);
           const b = project(to);
+          const mx = (a.px + b.px) / 2;
+          const my = (a.py + b.py) / 2;
           const highlighted = highlightSet.has(`${lane.fromNodeId}|${lane.toNodeId}`);
+          const clickable = !!onLaneToggle;
           return (
-            <line
+            <g
               key={lane.id}
-              x1={a.px}
-              y1={a.py}
-              x2={b.px}
-              y2={b.py}
-              stroke={highlighted ? "#5b8def" : congestionColor(lane.congestionWeight, lane.blocked)}
-              strokeWidth={highlighted ? 5 : lane.blocked ? 3 : 2}
-              strokeDasharray={lane.blocked ? "6 4" : undefined}
-              className={styles.lane}
-            />
+              className={clickable ? styles.laneGroup : undefined}
+              onClick={clickable ? () => onLaneToggle!(lane) : undefined}
+            >
+              {clickable && (
+                <line x1={a.px} y1={a.py} x2={b.px} y2={b.py} className={styles.laneHit} />
+              )}
+              <line
+                x1={a.px}
+                y1={a.py}
+                x2={b.px}
+                y2={b.py}
+                stroke={highlighted ? "#5b8def" : congestionColor(lane.congestionWeight, lane.blocked)}
+                strokeWidth={highlighted ? 5 : lane.blocked ? 4 : 2}
+                strokeDasharray={lane.blocked ? "7 5" : undefined}
+                className={styles.lane}
+              />
+              {/* A distinct barrier glyph so "blocked" never reads as merely "congested" — both otherwise share red. */}
+              {lane.blocked && (
+                <g transform={`translate(${mx}, ${my})`} className={styles.barrierIcon}>
+                  <circle r={9} fill="#0d1117" stroke="#e5484d" strokeWidth={2} />
+                  <line x1={-5} y1={-5} x2={5} y2={5} stroke="#e5484d" strokeWidth={2} strokeLinecap="round" />
+                  <line x1={-5} y1={5} x2={5} y2={-5} stroke="#e5484d" strokeWidth={2} strokeLinecap="round" />
+                </g>
+              )}
+              <title>
+                {lane.fromNodeId} ↔ {lane.toNodeId} · {lane.blocked ? "Blocked" : `Congestion ${lane.congestionWeight.toFixed(2)}`}
+                {clickable ? ` · click to ${lane.blocked ? "unblock" : "block"}` : ""}
+              </title>
+            </g>
           );
         })}
 
@@ -120,11 +165,20 @@ export default function YardMap({ nodes, lanes, equipment, containerCountsByBloc
           const { px, py } = project(node);
           const isBlockEntry = node.blockId !== null;
           if (!isBlockEntry) {
+            const isGate = node.id === "GATE";
             return (
               <g key={node.id}>
-                <circle cx={px} cy={py} r={5} className={styles.junction} />
-                {node.id === "GATE" && (
-                  <text x={px} y={py - 12} className={styles.nodeLabel} textAnchor="middle">
+                {isGate ? (
+                  <g transform={`translate(${px}, ${py})`}>
+                    <rect x={-11} y={-11} width={22} height={22} rx={5} fill="#1c2333" stroke="#5b8def" strokeWidth={1.5} />
+                    <path d="M -5 4 L -5 -4 L 0 -8 L 5 -4 L 5 4" fill="none" stroke="#5b8def" strokeWidth={1.6} strokeLinejoin="round" />
+                    <line x1={-5} y1={4} x2={5} y2={4} stroke="#5b8def" strokeWidth={1.6} />
+                  </g>
+                ) : (
+                  <circle cx={px} cy={py} r={5} className={styles.junction} />
+                )}
+                {isGate && (
+                  <text x={px} y={py - 18} className={styles.nodeLabel} textAnchor="middle">
                     GATE
                   </text>
                 )}
@@ -179,9 +233,22 @@ export default function YardMap({ nodes, lanes, equipment, containerCountsByBloc
           return (
             <g key={eq.id} className={styles.equipmentMarker} style={{ transform: `translate(${px + ox}px, ${py + oy}px)` }}>
               {eq.type === "CRANE" ? (
-                <path d="M -6 6 L 0 -8 L 6 6 Z" fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={1} />
+                <g>
+                  {/* Gantry crane silhouette: mast, jib, hoist line — reads distinctly from the truck box at a glance. */}
+                  <line x1={0} y1={8} x2={0} y2={-9} stroke={equipmentColor(eq.status)} strokeWidth={2.2} strokeLinecap="round" />
+                  <line x1={-6} y1={-9} x2={10} y2={-9} stroke={equipmentColor(eq.status)} strokeWidth={2.2} strokeLinecap="round" />
+                  <line x1={10} y1={-9} x2={10} y2={-1} stroke={equipmentColor(eq.status)} strokeWidth={1.6} strokeLinecap="round" />
+                  <line x1={-7} y1={8} x2={7} y2={8} stroke={equipmentColor(eq.status)} strokeWidth={2.2} strokeLinecap="round" />
+                  <circle cx={10} cy={-1} r={1.8} fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={0.75} />
+                </g>
               ) : (
-                <rect x={-6} y={-4} width={12} height={8} rx={2} fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={1} />
+                <g>
+                  {/* Yard truck: cab + trailer bed + wheels. */}
+                  <rect x={-10} y={-3} width={7} height={7} rx={1.5} fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={1} />
+                  <rect x={-3} y={-6} width={12} height={10} rx={1.5} fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={1} />
+                  <circle cx={-6} cy={6} r={2.2} fill="#0d1117" stroke={equipmentColor(eq.status)} strokeWidth={1.4} />
+                  <circle cx={5} cy={6} r={2.2} fill="#0d1117" stroke={equipmentColor(eq.status)} strokeWidth={1.4} />
+                </g>
               )}
               <title>
                 {eq.id} · {eq.type} · {eq.status}
@@ -201,7 +268,10 @@ export default function YardMap({ nodes, lanes, equipment, containerCountsByBloc
           <i className={styles.legendDot} style={{ background: "#6e7681" }} /> Offline
         </span>
         <span>
-          <i className={styles.legendLine} style={{ background: "#e5484d" }} /> Blocked / congested
+          <i className={styles.legendLine} style={{ background: "#e5484d" }} /> High congestion
+        </span>
+        <span>
+          <i className={styles.legendBarrier} /> Blocked{onLaneToggle ? " (click a lane to toggle)" : ""}
         </span>
         {routePoints.length > 1 && (
           <span>

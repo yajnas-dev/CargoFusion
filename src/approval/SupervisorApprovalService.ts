@@ -109,6 +109,11 @@ export class SupervisorApprovalService {
   }
 
   async approve(taskId: string, actor: string): Promise<Task> {
+    const current = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+    if (current.status !== "PLANNED") {
+      throw new Error(`Task ${taskId} must be PLANNED to approve (was ${current.status}).`);
+    }
+
     const task = await prisma.task.update({
       where: { id: taskId },
       data: { status: "APPROVED" },
@@ -120,6 +125,11 @@ export class SupervisorApprovalService {
   }
 
   async reject(taskId: string, actor: string, reason: string): Promise<Task> {
+    const current = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+    if (current.status !== "PLANNED" && current.status !== "REQUESTED") {
+      throw new Error(`Task ${taskId} must be PLANNED or REQUESTED to reject (was ${current.status}).`);
+    }
+
     const task = await prisma.task.update({
       where: { id: taskId },
       data: { status: "REJECTED" },
@@ -143,6 +153,9 @@ export class SupervisorApprovalService {
       }),
       prisma.task.findUniqueOrThrow({ where: { id: taskId } }),
     ]);
+    if (currentTask.status !== "PLANNED" && currentTask.status !== "APPROVED") {
+      throw new Error(`Task ${taskId} must be PLANNED or APPROVED to override (was ${currentTask.status}).`);
+    }
 
     const task = await prisma.task.update({
       where: { id: taskId },

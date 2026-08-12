@@ -38,3 +38,6 @@ Thumbs.db
 skills-lock.json
 
 /src/generated/prisma
+
+# stray background-agent scratch worktrees
+.claude/worktrees/

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { WorkerTaskService } from "@/worker/WorkerTaskService";
+import { errorResponse } from "@/app/api/errorResponse";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -10,6 +11,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const task = await new WorkerTaskService().dispatch(id, actor);
     return NextResponse.json({ task });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+    return errorResponse(err);
   }
 }

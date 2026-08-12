@@ -101,6 +101,7 @@ export default function WorkerApp() {
       </header>
 
       <select
+        aria-label="Select worker"
         value={workerId}
         onChange={(e) => {
           setWorkerId(e.target.value);

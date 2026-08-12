@@ -117,6 +117,37 @@ describe("DigitalTwin.validatePlan", () => {
     expect(result.issues.map((i) => i.type)).toContain("EQUIPMENT_DOUBLE_BOOKED");
   });
 
+  it("REPLANs when the equipment is committed to a PLANNED (not-yet-approved) task", async () => {
+    // A resolved-but-unapproved recommendation is persisted as a PLANNED
+    // task with an assignedEquipmentId already set — this must count as a
+    // live claim on that equipment just like APPROVED/DISPATCHED/IN_PROGRESS
+    // do, or two concurrent requests could both get recommended (and later
+    // both approved/dispatched onto) the same physical equipment.
+    const { container, equipment, routeNodeIds } = await eligiblePlanInputs();
+    const otherContainer = await prisma.container.findFirst({
+      where: { id: { not: container.id } },
+    });
+    const plannedTask = await prisma.task.create({
+      data: {
+        containerId: otherContainer!.id,
+        requestedBy: "test-user",
+        status: "PLANNED",
+        assignedEquipmentId: equipment.id,
+      },
+    });
+    createdTaskIds.push(plannedTask.id);
+
+    const twin = new DigitalTwin(new MockTOSAdapter());
+    const result = await twin.validatePlan({
+      containerId: container.id,
+      equipmentId: equipment.id,
+      routeNodeIds,
+    });
+
+    expect(result.recommendedAction).toBe("REPLAN");
+    expect(result.issues.map((i) => i.type)).toContain("EQUIPMENT_DOUBLE_BOOKED");
+  });
+
   it("excludes the plan's own task from double-booking/reservation checks", async () => {
     const { container, equipment, routeNodeIds } = await eligiblePlanInputs();
     const ownTask = await prisma.task.create({

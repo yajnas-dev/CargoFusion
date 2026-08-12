@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
 import { SupervisorApprovalService } from "@/approval/SupervisorApprovalService";
+import { errorResponse } from "@/app/api/errorResponse";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,6 +16,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     return NextResponse.json({ task });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+    return errorResponse(err);
   }
 }

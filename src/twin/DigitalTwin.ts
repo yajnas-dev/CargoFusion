@@ -1,7 +1,6 @@
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import { prisma } from "@/domain/db";
-
-const ACTIVE_TASK_STATUSES = ["APPROVED", "DISPATCHED", "IN_PROGRESS"] as const;
+import { ACTIVE_TASK_STATUSES } from "@/domain/constants";
 
 export type TwinIssueType =
   | "CONTAINER_NOT_FOUND"

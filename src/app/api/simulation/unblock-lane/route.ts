@@ -5,10 +5,10 @@ import { errorResponse } from "@/app/api/errorResponse";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const laneId = typeof body.laneId === "string" ? body.laneId : undefined;
-  const controls = new DemoControls();
+  if (!laneId) return NextResponse.json({ error: "laneId is required." }, { status: 400 });
+
   try {
-    const lane = laneId ? await controls.blockLane(laneId) : await controls.blockRandomLane();
-    if (!lane) return NextResponse.json({ error: "No lane available to block." }, { status: 400 });
+    const lane = await new DemoControls().unblockLane(laneId);
     return NextResponse.json({ lane });
   } catch (err) {
     return errorResponse(err);

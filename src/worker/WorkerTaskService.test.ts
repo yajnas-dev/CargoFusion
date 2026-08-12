@@ -124,4 +124,55 @@ describe("WorkerTaskService", () => {
     await expect(workerService.startTask(taskId, "someone-else")).rejects.toThrow(/not assigned/);
     await expect(workerService.confirmRetrieval(taskId, "someone-else")).rejects.toThrow(/not assigned/);
   });
+
+  it("doesn't double-assign the same worker to two tasks dispatched concurrently", async () => {
+    // Regression test for a TOCTOU race: dispatch() used to read the first
+    // AVAILABLE worker, then write inside a separate transaction, so two
+    // concurrent dispatch() calls could both read the same worker before
+    // either write committed. Firing two dispatches together (against two
+    // different approved tasks) reproduces that interleaving deterministically,
+    // since without the fix both reads happen before either write and (with
+    // no orderBy) resolve to the same "first available" row.
+    const approval = new SupervisorApprovalService(new MockTOSAdapter());
+
+    const container1 = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const { task: task1 } = await approval.submitRequest({
+      containerQuery: container1!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    await approval.approve(task1!.id, "supervisor-1");
+    createdTaskIds.push(task1!.id);
+    mutatedContainerIds.push(container1!.id);
+
+    const container2 = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD", id: { not: container1!.id } },
+    });
+    const { task: task2 } = await approval.submitRequest({
+      containerQuery: container2!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    await approval.approve(task2!.id, "supervisor-1");
+    createdTaskIds.push(task2!.id);
+    mutatedContainerIds.push(container2!.id);
+
+    const workerService = new WorkerTaskService();
+    const [dispatched1, dispatched2] = await Promise.all([
+      workerService.dispatch(task1!.id, "supervisor-1"),
+      workerService.dispatch(task2!.id, "supervisor-1"),
+    ]);
+
+    expect(dispatched1.assignedWorkerId).toBeTruthy();
+    expect(dispatched2.assignedWorkerId).toBeTruthy();
+    expect(dispatched1.assignedWorkerId).not.toBe(dispatched2.assignedWorkerId);
+    mutatedWorkerIds.push(dispatched1.assignedWorkerId!, dispatched2.assignedWorkerId!);
+
+    const worker1 = await prisma.worker.findUniqueOrThrow({ where: { id: dispatched1.assignedWorkerId! } });
+    const worker2 = await prisma.worker.findUniqueOrThrow({ where: { id: dispatched2.assignedWorkerId! } });
+    expect(worker1.status).toBe("BUSY");
+    expect(worker2.status).toBe("BUSY");
+  });
 });

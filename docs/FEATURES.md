@@ -104,13 +104,13 @@ This is what lets the yard map visibly reroute around a blocked lane or a conges
 Deterministic weighted scoring, not an LLM guess and not OR-Tools (unnecessary at this scale):
 
 - **Hard filters** (excluded outright, not scored): wrong equipment type, not `AVAILABLE`, insufficient capacity for the container's weight, or simply unreachable on the yard graph.
-- **Scored factors**: distance (via the real A* route, not a straight-line guess), capacity fit (penalizes using an oversized crane for a light container), and live workload (a real count of the equipment's currently active tasks, not just its status flag).
+- **Scored factors**: distance (via the real A* route, not a straight-line guess), capacity fit (penalizes using an oversized crane for a light container), and live workload — a real count of the equipment's currently active tasks (per the shared `ACTIVE_TASK_STATUSES` constant, including `PLANNED`), not just its status flag.
 - **Priority reweighting**: `HIGH`/`URGENT` requests weight distance at 0.6 instead of 0.4 — get the nearest capable resource moving, even at a small cost to capacity-fit precision.
 - Every candidate is returned with its full score breakdown, not just the winner, so the UI can show *why* one truck beat the alternatives (and so a supervisor's Override dropdown has real runner-up options to pick from).
 
 ## Digital Twin (`src/twin/DigitalTwin.ts`)
 
-Before any plan is ever shown to a human, `validatePlan()` checks it against live state for seven kinds of conflict: container not found / not eligible / already reserved by another task; equipment not found / unavailable / already committed elsewhere; or a blocked lane on the route. Each result is classified:
+Before any plan is ever shown to a human, `validatePlan()` checks it against live state for seven kinds of conflict: container not found / not eligible / already reserved by another task; equipment not found / unavailable / already committed elsewhere; or a blocked lane on the route. "Already committed elsewhere" is checked against `ACTIVE_TASK_STATUSES` (`src/domain/constants.ts`) — `PLANNED, APPROVED, DISPATCHED, IN_PROGRESS`. Deliberately includes `PLANNED`, not just post-approval states: a resolved-but-not-yet-approved recommendation already names an equipment/container pair, so without it a second concurrent request could get scored, twin-validated, and persisted against the same equipment while an earlier request just sits awaiting supervisor approval. The constant is shared with `EquipmentAllocationService`'s workload scoring so the two checks can't drift out of sync with each other. Each result is classified:
 
 - **PROCEED** — no issues, plan stands.
 - **REPLAN** — a mechanically fixable conflict (busy equipment, a blocked lane) — the pipeline automatically retries with the next-best candidate before giving up.
@@ -153,7 +153,7 @@ Three actions, each logging an `AuditEvent`:
 
 Carries an `APPROVED` task the rest of the way:
 
-- **`dispatch()`** — assigns the first available worker, marks them `BUSY`, moves the task to `DISPATCHED`.
+- **`dispatch()`** — assigns the first available worker, marks them `BUSY`, moves the task to `DISPATCHED`. The find-an-available-worker read and the claim-that-worker write happen inside one Prisma interactive transaction, not a read followed by a separate write — otherwise two concurrent `dispatch()` calls could both read the same available worker before either commits, double-assigning that worker to two different tasks. SQLite serializes concurrent write transactions, so wrapping the read+claim in a single transaction closes that window.
 - **`startTask()`** — `DISPATCHED → IN_PROGRESS`.
 - **`confirmRetrieval()`** — `→ RETRIEVED`, frees the worker, and updates the container's own status/eligibility (the one place ACSA writes container data — reasoned through explicitly in code: there's no separate real TOS in this prototype to have written it first, so this *is* the simulated equivalent of "the move got captured in the TOS's own audit trail").
 - **`completeTask()`** — `RETRIEVED → COMPLETED`.
@@ -169,7 +169,7 @@ Every transition is guarded (wrong status, wrong worker) and throws rather than 
 
 ## API Layer (`src/app/api/`)
 
-Thin route handlers with no business logic beyond wiring — every route just calls into the services above and shapes the JSON response.
+Thin route handlers with no business logic beyond wiring — every route just calls into the services above and shapes the JSON response. Errors thrown by the service layer are mapped to a JSON response by a shared `errorResponse()` helper (`src/app/api/errorResponse.ts`) rather than each route re-implementing the mapping: a Prisma "record not found" (`P2025`, e.g. an id that doesn't exist) becomes HTTP 404, every other thrown error (guard rejections, validation failures) becomes 400.
 
 | Route | What it does |
 |---|---|
@@ -193,18 +193,23 @@ A dark, always-on "ops console" theme (not adaptive to system light/dark — a d
 - **Task Tracking** — a live table of every task with an inline "Mark Completed" action for anything sitting at `RETRIEVED`.
 - **Worker App** (`/worker`) — pick a worker, see their one active task (if any), Start → Confirm Retrieval.
 
-Both pages poll the relevant API routes every 5–8 seconds for live updates, with a real ticking clock and a real alert count (blocked lanes + digital-twin conflicts) in the header.
+Both pages poll the relevant API routes every 5–8 seconds for live updates, with a real ticking clock and a real alert count (blocked lanes + digital-twin conflicts) in the header. Key interactive controls (the retrieval request input, the override equipment select and reason field, the worker picker) carry explicit `aria-label`s rather than relying on placeholder text alone, since placeholder-only labeling disappears for screen readers once the field has a value.
 
 ---
 
 ## Testing
 
-87 automated tests (Vitest) across 21 files, all run against the real seeded SQLite database — no mocked business logic anywhere in the suite. Notable pieces:
+Automated tests (Vitest), all run against the real seeded SQLite database — no mocked business logic anywhere in the suite. Notable pieces:
 
 - A synthetic 4-node cycle graph precisely proves A*'s reroute-around-a-blocked-lane and congestion-aware detour selection.
 - A live integration test that actually calls the real Gemini API when a key is configured (skips visibly, not silently, if the free-tier quota is exhausted — which happened for real during development).
 - `src/e2e/full-demo-scenario.test.ts` drives the *actual Next.js route handlers* — not the underlying service classes — through the complete report scenario end to end, asserting the full seven-event audit trail is present, in order, with no gaps.
 - Tests that mutate shared seeded rows (equipment status, lane congestion, task assignments) snapshot the original state and restore it in `afterEach`/`afterAll`, a pattern established after a real flaky-test bug was found and fixed: Vitest's default file parallelism was racing multiple test files against the same database rows.
+- `EquipmentAllocationService.test.ts` and `DigitalTwin.test.ts` cover the `PLANNED`-counts-as-active fix directly: a `PLANNED` task holding a piece of equipment now shows up both as workload in allocation scoring and as a reservation conflict in twin validation. `WorkerTaskService.test.ts` covers `dispatch()`'s transactional worker-claim under concurrent calls.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request targeting `main`: install → apply migrations → seed → `next build` (also generates the route types `typecheck` depends on) → `typecheck` → `lint` → `test`, on Node 20/ubuntu-latest.
 
 ## Bugs found by actually running the app (not just the test suite)
 
@@ -234,8 +239,9 @@ See the "Prototype vs. Report" table in [`PROTOTYPE_IMPLEMENTATION_PLAN.md`](./P
 - **Framework**: Next.js 16 (App Router, TypeScript, Turbopack)
 - **Database**: SQLite via Prisma 7 (driver-adapter pattern), seeded deterministically
 - **AI**: Google Gemini API (`@google/genai`)
-- **Testing**: Vitest, 87 tests, run serially against the real seeded database
+- **Testing**: Vitest, run serially against the real seeded database
 - **UI**: Plain CSS Modules, no component library — a hand-built dark ops-console theme with a live SVG yard-map visualization
+- **CI**: GitHub Actions (`.github/workflows/ci.yml`) — build, typecheck, lint, test on every push/PR to `main`
 
 ## Running it
 

@@ -10,34 +10,43 @@ import type { Task } from "@/domain/types";
  * queries elsewhere in optimization/twin/approval.
  */
 export class WorkerTaskService {
+  /**
+   * Finding an AVAILABLE worker and claiming them has to happen inside one
+   * atomic transaction, not as a read followed by a separate write — two
+   * concurrent dispatch() calls that both read the same available worker
+   * before either commits would otherwise double-assign that worker to two
+   * different tasks. SQLite serializes concurrent write transactions, so
+   * doing the read+claim inside a single interactive transaction closes
+   * that window.
+   */
   async dispatch(taskId: string, actor: string): Promise<Task> {
-    const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
-    if (task.status !== "APPROVED") {
-      throw new Error(`Task ${taskId} must be APPROVED to dispatch (was ${task.status}).`);
-    }
+    return prisma.$transaction(async (tx) => {
+      const task = await tx.task.findUniqueOrThrow({ where: { id: taskId } });
+      if (task.status !== "APPROVED") {
+        throw new Error(`Task ${taskId} must be APPROVED to dispatch (was ${task.status}).`);
+      }
 
-    const worker = await prisma.worker.findFirst({ where: { status: "AVAILABLE" } });
-    if (!worker) {
-      throw new Error("No available worker to dispatch this task to.");
-    }
+      const worker = await tx.worker.findFirst({ where: { status: "AVAILABLE" } });
+      if (!worker) {
+        throw new Error("No available worker to dispatch this task to.");
+      }
 
-    const [updatedTask] = await prisma.$transaction([
-      prisma.task.update({
+      const updatedTask = await tx.task.update({
         where: { id: taskId },
         data: { status: "DISPATCHED", assignedWorkerId: worker.id },
-      }),
-      prisma.worker.update({ where: { id: worker.id }, data: { status: "BUSY" } }),
-      prisma.auditEvent.create({
+      });
+      await tx.worker.update({ where: { id: worker.id }, data: { status: "BUSY" } });
+      await tx.auditEvent.create({
         data: {
           taskId,
           action: "DISPATCHED",
           actor,
           detailsJson: JSON.stringify({ workerId: worker.id }),
         },
-      }),
-    ]);
+      });
 
-    return updatedTask;
+      return updatedTask;
+    });
   }
 
   async startTask(taskId: string, workerId: string): Promise<Task> {

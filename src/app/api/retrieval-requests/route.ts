@@ -6,6 +6,7 @@ import { PlanExplainer } from "@/agents/PlanExplainer";
 import { fallbackExplain, fallbackInterpret } from "@/agents/fallback";
 import { SupervisorApprovalService } from "@/approval/SupervisorApprovalService";
 import { prisma } from "@/domain/db";
+import { errorResponse } from "@/app/api/errorResponse";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -37,25 +38,29 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const approval = new SupervisorApprovalService(new MockTOSAdapter());
-  const result = await approval.submitRequest({
-    containerQuery: interpreted.containerQuery,
-    requestedBy,
-    priority: interpreted.priority,
-    requiredEquipmentType: interpreted.requiredEquipmentType,
-    naturalLanguageRequest: rawRequest,
-  });
-
-  const explanation = model
-    ? await new PlanExplainer(model).explain(result.planResult).catch(() => fallbackExplain(result.planResult))
-    : fallbackExplain(result.planResult);
-
-  if (result.recommendation) {
-    await prisma.recommendation.update({
-      where: { id: result.recommendation.id },
-      data: { explanation },
+  try {
+    const approval = new SupervisorApprovalService(new MockTOSAdapter());
+    const result = await approval.submitRequest({
+      containerQuery: interpreted.containerQuery,
+      requestedBy,
+      priority: interpreted.priority,
+      requiredEquipmentType: interpreted.requiredEquipmentType,
+      naturalLanguageRequest: rawRequest,
     });
-  }
 
-  return NextResponse.json({ interpreted, explanation, ...result });
+    const explanation = model
+      ? await new PlanExplainer(model).explain(result.planResult).catch(() => fallbackExplain(result.planResult))
+      : fallbackExplain(result.planResult);
+
+    if (result.recommendation) {
+      await prisma.recommendation.update({
+        where: { id: result.recommendation.id },
+        data: { explanation },
+      });
+    }
+
+    return NextResponse.json({ interpreted, explanation, ...result });
+  } catch (err) {
+    return errorResponse(err);
+  }
 }

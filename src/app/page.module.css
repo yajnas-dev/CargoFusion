@@ -89,6 +89,26 @@
   background: var(--ops-panel-bg);
 }
 
+.navLiveDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ops-green);
+  margin-left: 6px;
+  animation: navPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes navPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(63, 185, 80, 0);
+  }
+}
+
 .toast {
   position: fixed;
   bottom: 20px;
@@ -256,17 +276,68 @@
 
 /* Grid layout */
 
-.grid3 {
+.grid2 {
   display: grid;
-  grid-template-columns: 1fr 1.3fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: start;
 }
 
-@media (max-width: 1100px) {
-  .grid3 {
+@media (max-width: 900px) {
+  .grid2 {
     grid-template-columns: 1fr;
   }
+}
+
+/* Simulation CTA */
+
+.simCta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--ops-panel-bg), var(--ops-panel-bg-alt));
+  border: 1px solid var(--ops-border);
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.simCta:hover {
+  border-color: var(--ops-accent);
+  transform: translateY(-1px);
+}
+
+.simCtaLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.simCtaIcon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.simCtaLeft h2 {
+  font-size: 1rem;
+  margin-bottom: 3px;
+}
+
+.simCtaLeft p {
+  font-size: 0.8rem;
+  color: var(--ops-muted);
+}
+
+.simCtaArrow {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ops-accent);
+  white-space: nowrap;
 }
 
 .col {
@@ -547,18 +618,12 @@
   margin-top: 10px;
 }
 
-/* Simulation controls */
+/* Misc small text + task-table buttons (also used outside the removed simulation panel) */
 
 .simDescription {
   color: var(--ops-muted);
   font-size: 0.82rem;
   margin-bottom: 12px;
-}
-
-.simButtonRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .simButton {
