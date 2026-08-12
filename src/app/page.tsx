@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { MapEquipment, MapLane, MapNode } from "./YardMap";
+import { useLiveEvents } from "./useLiveEvents";
+import { TOPICS } from "@/events/topics";
 import styles from "./page.module.css";
 
 type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -159,12 +161,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     const timeout = setTimeout(refresh, 0); // deferred so the initial load doesn't setState synchronously in the effect
-    const interval = setInterval(refresh, 8000);
+    // 30s fallback poll in case the SSE stream (below) is silently disconnected.
+    const interval = setInterval(refresh, 30000);
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
   }, [refresh]);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(refresh, 300);
+  }, [refresh]);
+
+  useLiveEvents({
+    [TOPICS.TASK_CHANGED]: debouncedRefresh,
+    [TOPICS.RECOMMENDATION_CREATED]: debouncedRefresh,
+    [TOPICS.YARD_LANE_CHANGED]: debouncedRefresh,
+    [TOPICS.YARD_EQUIPMENT_CHANGED]: debouncedRefresh,
+    [TOPICS.AGENT_ALERT_RAISED]: debouncedRefresh,
+  });
 
   useEffect(() => {
     const update = () => setClock(new Date().toLocaleTimeString());

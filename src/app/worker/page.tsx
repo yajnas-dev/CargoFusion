@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useLiveEvents } from "../useLiveEvents";
+import { TOPICS } from "@/events/topics";
 import styles from "./page.module.css";
 
 interface SessionUser {
@@ -51,12 +53,26 @@ export default function WorkerApp() {
   useEffect(() => {
     if (!workerId) return;
     const timeout = setTimeout(() => loadActiveTask(workerId), 0);
-    const interval = setInterval(() => loadActiveTask(workerId), 5000);
+    // 15s fallback poll in case the SSE stream (below) is silently disconnected.
+    const interval = setInterval(() => loadActiveTask(workerId), 15000);
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
   }, [workerId, loadActiveTask]);
+
+  // The TASK_CHANGED payload doesn't carry which worker a task belongs to,
+  // so any task change just re-fetches this worker's own active task —
+  // the endpoint itself is already scoped server-side, so this is
+  // correctness-safe, just occasionally a no-op refetch for other workers.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedReload = useCallback(() => {
+    if (!workerId) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => loadActiveTask(workerId), 300);
+  }, [workerId, loadActiveTask]);
+
+  useLiveEvents({ [TOPICS.TASK_CHANGED]: debouncedReload });
 
   async function startTask() {
     if (!task) return;

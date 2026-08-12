@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import YardMap, { type MapEquipment, type MapLane, type MapNode } from "../YardMap";
+import { useLiveEvents } from "../useLiveEvents";
+import { TOPICS } from "@/events/topics";
 import styles from "./page.module.css";
 
 interface YardSummary {
@@ -49,12 +51,28 @@ export default function SimulationPage() {
 
   useEffect(() => {
     const timeout = setTimeout(refresh, 0);
-    const interval = setInterval(refresh, 4000); // faster than the dashboard's poll — this page exists to watch the yard change live
+    // 10s fallback poll — tighter than the dashboard's, since this page
+    // exists specifically to watch the yard change live — in case the SSE
+    // stream (below) is silently disconnected.
+    const interval = setInterval(refresh, 10000);
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
   }, [refresh]);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(refresh, 300);
+  }, [refresh]);
+
+  useLiveEvents({
+    [TOPICS.YARD_LANE_CHANGED]: debouncedRefresh,
+    [TOPICS.YARD_EQUIPMENT_CHANGED]: debouncedRefresh,
+    [TOPICS.SENSOR_EVENT]: debouncedRefresh,
+    [TOPICS.TASK_CHANGED]: debouncedRefresh,
+  });
 
   useEffect(() => {
     const update = () => setClock(new Date().toLocaleTimeString());
