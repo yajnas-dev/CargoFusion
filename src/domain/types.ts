@@ -15,6 +15,9 @@ export type {
   Recommendation,
   AuditEvent,
   SensorEvent,
+  User,
+  AgentAlert,
+  TosWriteBackLog,
   ContainerStatus,
   ContainerType,
   Priority,
@@ -25,6 +28,10 @@ export type {
   ConfidenceLevel,
   AuditAction,
   SensorEventType,
+  UserRole,
+  AgentAlertType,
+  AgentAlertStatus,
+  SuggestedActionType,
 } from "@/generated/prisma/client";
 
 import type { YardBlock, YardNode, YardLane } from "@/generated/prisma/client";
