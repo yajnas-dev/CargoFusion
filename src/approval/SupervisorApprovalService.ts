@@ -192,8 +192,15 @@ export class SupervisorApprovalService {
       }),
       prisma.task.findUniqueOrThrow({ where: { id: taskId } }),
     ]);
-    if (currentTask.status !== "PLANNED" && currentTask.status !== "APPROVED") {
-      throw new Error(`Task ${taskId} must be PLANNED or APPROVED to override (was ${currentTask.status}).`);
+    // REQUESTED is included alongside PLANNED/APPROVED so this also covers
+    // the Container Management Agent's REASSIGN_EQUIPMENT suggestion
+    // (src/agent-monitor/AgentAlertService.ts): a task can sit at
+    // REQUESTED with no recommendation at all when the original plan hit
+    // NO_EQUIPMENT/NO_ROUTE/NEEDS_ESCALATION — `originalRecommendation`
+    // being null is already handled below (report section 12's
+    // who/why/original-vs-new capture just records null for "original").
+    if (currentTask.status !== "PLANNED" && currentTask.status !== "APPROVED" && currentTask.status !== "REQUESTED") {
+      throw new Error(`Task ${taskId} must be REQUESTED, PLANNED, or APPROVED to override (was ${currentTask.status}).`);
     }
 
     if (newDecision.equipmentId) {

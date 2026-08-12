@@ -141,6 +141,34 @@ describe("SupervisorApprovalService", () => {
     expect(details.timestamp).toBeTruthy();
   });
 
+  it("override() also accepts a REQUESTED task with no prior recommendation (Container Management Agent's REASSIGN_EQUIPMENT path)", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    // Built directly rather than via submitRequest — REQUESTED tasks with
+    // no Recommendation arise from NO_EQUIPMENT/NO_ROUTE/NEEDS_ESCALATION
+    // plans, which this test doesn't need to reproduce end-to-end.
+    const task = await prisma.task.create({
+      data: { containerId: container!.id, status: "REQUESTED", priority: "MEDIUM", requestedBy: "test-operator" },
+    });
+    createdTaskIds.push(task.id);
+
+    const equipment = await prisma.equipment.findFirst({ where: { type: "YARD_TRUCK", status: "AVAILABLE" } });
+    expect(equipment).not.toBeNull();
+
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const overridden = await service.override(task.id, "supervisor-2", "Equipment now available.", {
+      equipmentId: equipment!.id,
+    });
+
+    expect(overridden.status).toBe("APPROVED");
+    expect(overridden.assignedEquipmentId).toBe(equipment!.id);
+
+    const audit = await prisma.auditEvent.findFirst({ where: { taskId: task.id, action: "OVERRIDDEN" } });
+    const details = JSON.parse(audit!.detailsJson);
+    expect(details.originalRecommendation).toBeNull();
+  });
+
   it("override() rejects a nonexistent equipment id and leaves the task unchanged", async () => {
     const container = await prisma.container.findFirst({
       where: { retrievalEligible: true, status: "IN_YARD" },
@@ -232,6 +260,6 @@ describe("SupervisorApprovalService", () => {
     );
     await expect(
       service.override(task!.id, "supervisor-1", "too late", { equipmentId: alternateEquipment!.id }),
-    ).rejects.toThrow(/must be PLANNED or APPROVED/);
+    ).rejects.toThrow(/must be REQUESTED, PLANNED, or APPROVED/);
   });
 });

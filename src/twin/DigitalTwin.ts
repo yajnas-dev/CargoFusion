@@ -1,6 +1,7 @@
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import { prisma } from "@/domain/db";
 import { ACTIVE_TASK_STATUSES } from "@/domain/constants";
+import type { YardLane } from "@/domain/types";
 
 export type TwinIssueType =
   | "CONTAINER_NOT_FOUND"
@@ -24,6 +25,34 @@ const REPLANNABLE_ISSUES: ReadonlySet<TwinIssueType> = new Set([
   "EQUIPMENT_DOUBLE_BOOKED",
   "LANE_BLOCKED",
 ]);
+
+/**
+ * The first adjacent pair in routeNodeIds that crosses a blocked lane, or
+ * null if none does. Shared between DigitalTwin.validatePlan's
+ * LANE_BLOCKED check and the Container Management Agent's
+ * blockedLaneImpact detector (src/agent-monitor/detectors/blockedLaneImpact.ts),
+ * so "does this route cross this blocked lane" has exactly one
+ * implementation. Returns the segment (not just a boolean) so callers can
+ * build a specific message.
+ */
+export function findBlockedRouteSegment(
+  routeNodeIds: string[],
+  lanes: Pick<YardLane, "fromNodeId" | "toNodeId" | "blocked">[],
+): { fromNodeId: string; toNodeId: string } | null {
+  const blockedPairs = new Set<string>();
+  for (const lane of lanes) {
+    if (lane.blocked) {
+      blockedPairs.add(`${lane.fromNodeId}|${lane.toNodeId}`);
+      blockedPairs.add(`${lane.toNodeId}|${lane.fromNodeId}`);
+    }
+  }
+  for (let i = 0; i < routeNodeIds.length - 1; i++) {
+    if (blockedPairs.has(`${routeNodeIds[i]}|${routeNodeIds[i + 1]}`)) {
+      return { fromNodeId: routeNodeIds[i], toNodeId: routeNodeIds[i + 1] };
+    }
+  }
+  return null;
+}
 
 export interface PlanToValidate {
   /** Excludes this task's own reservation from double-booking checks (re-validating an existing task). */
@@ -110,22 +139,12 @@ export class DigitalTwin {
     }
 
     const yardState = await this.tos.getYardState();
-    const blockedPairs = new Set<string>();
-    for (const lane of yardState.lanes) {
-      if (lane.blocked) {
-        blockedPairs.add(`${lane.fromNodeId}|${lane.toNodeId}`);
-        blockedPairs.add(`${lane.toNodeId}|${lane.fromNodeId}`);
-      }
-    }
-    for (let i = 0; i < plan.routeNodeIds.length - 1; i++) {
-      const key = `${plan.routeNodeIds[i]}|${plan.routeNodeIds[i + 1]}`;
-      if (blockedPairs.has(key)) {
-        issues.push({
-          type: "LANE_BLOCKED",
-          message: `Route passes through a blocked lane between ${plan.routeNodeIds[i]} and ${plan.routeNodeIds[i + 1]}.`,
-        });
-        break; // one is enough to flag the plan; no need to enumerate every blocked segment
-      }
+    const blockedSegment = findBlockedRouteSegment(plan.routeNodeIds, yardState.lanes);
+    if (blockedSegment) {
+      issues.push({
+        type: "LANE_BLOCKED",
+        message: `Route passes through a blocked lane between ${blockedSegment.fromNodeId} and ${blockedSegment.toNodeId}.`,
+      });
     }
 
     const recommendedAction: RecommendedAction =
