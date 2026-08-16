@@ -1,0 +1,261 @@
+.shell {
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+  overflow: hidden;
+}
+
+.topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.05rem;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.countBadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.75rem;
+  color: var(--ops-muted);
+}
+
+.errorBar {
+  flex-shrink: 0;
+  padding: 8px 22px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.feedArea {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.feedHeading {
+  font-size: 0.85rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.emptyState {
+  color: var(--ops-muted);
+  font-size: 0.85rem;
+  padding: 20px;
+  border: 1px dashed var(--ops-border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.incidentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  border-left: 3px solid var(--ops-red);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardResolved {
+  border-left-color: var(--ops-border);
+  opacity: 0.8;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.typeTag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ops-muted);
+}
+
+.subjectId {
+  font-weight: 700;
+}
+
+.duration {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--ops-muted);
+}
+
+.cause {
+  font-size: 0.85rem;
+}
+
+.cardMeta {
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+}
+
+.resolveButton {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  background: var(--ops-green);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.resolveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controls {
+  width: 340px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.controls h2 {
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.reportForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+}
+
+.select,
+.textInput {
+  padding: 8px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-size: 0.85rem;
+}
+
+.previewBox {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.previewLoading {
+  color: var(--ops-muted);
+  font-style: italic;
+}
+
+.previewOk {
+  color: var(--ops-green);
+}
+
+.previewWarn {
+  color: var(--ops-amber);
+  font-weight: 600;
+}
+
+.previewList {
+  margin-left: 16px;
+  color: var(--ops-text);
+}
+
+.reportButton {
+  padding: 9px 14px;
+  border: none;
+  border-radius: 7px;
+  background: var(--ops-red);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reportButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .controls {
+    width: auto;
+    border-left: none;
+    border-top: 1px solid var(--ops-border);
+  }
+}

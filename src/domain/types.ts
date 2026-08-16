@@ -17,6 +17,7 @@ export type {
   SensorEvent,
   User,
   AgentAlert,
+  Incident,
   TosWriteBackLog,
   ContainerStatus,
   ContainerType,
@@ -32,6 +33,8 @@ export type {
   AgentAlertType,
   AgentAlertStatus,
   SuggestedActionType,
+  IncidentType,
+  IncidentStatus,
 } from "@/generated/prisma/client";
 
 import type { YardBlock, YardNode, YardLane, SensorEventType } from "@/generated/prisma/client";

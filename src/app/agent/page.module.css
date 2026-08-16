@@ -244,6 +244,24 @@
   line-height: 1.5;
 }
 
+.rerouteBox {
+  font-size: 0.76rem;
+  color: var(--ops-text);
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  padding: 6px 10px;
+}
+
+.rerouteBoxNone {
+  font-size: 0.76rem;
+  color: var(--ops-red);
+  background: rgba(229, 72, 77, 0.1);
+  border: 1px solid rgba(229, 72, 77, 0.25);
+  border-radius: 7px;
+  padding: 6px 10px;
+}
+
 .alertMeta {
   display: flex;
   flex-wrap: wrap;

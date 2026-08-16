@@ -292,6 +292,11 @@ export default function AgentPage() {
   );
 }
 
+interface AlternateRouteSubject {
+  alternateRoute: { path: string[]; distanceMeters: number; estimatedSeconds: number } | null;
+  delaySeconds: number | null;
+}
+
 function AlertCard({
   alert,
   pending,
@@ -306,6 +311,17 @@ function AlertCard({
   resolved?: boolean;
 }) {
   const canApply = alert.suggestedActionType !== "ESCALATE_TO_SUPERVISOR";
+
+  let reroute: AlternateRouteSubject | null = null;
+  if (alert.type === "BLOCKED_LANE_IMPACT") {
+    try {
+      const subject = JSON.parse(alert.subjectJson);
+      reroute = { alternateRoute: subject.alternateRoute ?? null, delaySeconds: subject.delaySeconds ?? null };
+    } catch {
+      reroute = null;
+    }
+  }
+
   return (
     <div className={`${styles.alertCard} ${styles[`severity${alert.severity}`]}`}>
       <div className={styles.alertCardHeader}>
@@ -313,6 +329,15 @@ function AlertCard({
         <span className={styles.alertSeverity}>{SEVERITY_LABEL[alert.severity]}</span>
       </div>
       <p className={styles.alertExplanation}>{alert.explanation}</p>
+      {reroute && reroute.alternateRoute && (
+        <div className={styles.rerouteBox}>
+          Alternate route: {reroute.alternateRoute.path.join(" → ")} (~{Math.round(reroute.alternateRoute.estimatedSeconds)}s
+          {reroute.delaySeconds !== null && reroute.delaySeconds > 0 ? `, +${reroute.delaySeconds}s vs. original` : ""})
+        </div>
+      )}
+      {reroute && !reroute.alternateRoute && (
+        <div className={styles.rerouteBoxNone}>No alternate route available — this task is stuck until the lane is unblocked.</div>
+      )}
       <div className={styles.alertMeta}>
         {alert.task?.container && <span>Container {alert.task.container.id}</span>}
         <span>{relativeTime(alert.detectedAt)}</span>

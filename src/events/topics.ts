@@ -12,6 +12,7 @@ export const TOPICS = {
   SENSOR_EVENT: "yard.sensor.event",
   AGENT_ALERT_RAISED: "agent.alert.raised",
   AGENT_ALERT_RESOLVED: "agent.alert.resolved",
+  INCIDENT_CHANGED: "incident.changed",
 } as const;
 
 export type Topic = (typeof TOPICS)[keyof typeof TOPICS];

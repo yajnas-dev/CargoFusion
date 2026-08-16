@@ -292,6 +292,18 @@ Following a operator-shift-focused roadmap review (see the plan history for "Por
 
 Explicitly out of scope for this pass (see the roadmap's Phase 2/3): incident records, reroute/what-if assistance, the Analytics/KPI dashboard, the Operations Assistant NL agent, batch requests, and the remaining `Alerts`/`Analytics`/`Settings` nav stubs.
 
+### Port Operations Roadmap — Phase 2 (P1 items)
+
+Follow-up pass closing the remaining P1 items:
+
+- **Incident Record Model** (`Incident` schema model, `src/incidents/IncidentService.ts`, `/incidents`) — report/resolve lifecycle layered on top of the existing `DemoControls.setEquipmentStatus`/`blockLane`/`unblockLane` mutations, capturing cause/reporter/start/resolve that those alone don't track.
+- **Incident Impact & Reroute Assist** — `blockedLaneImpact` now recomputes a real alternate route (A* already excludes blocked lanes) and estimates the delay versus the original path's physical distance, surfaced on the `/agent` alert card.
+- **What-If Preview** (`src/whatif/WhatIfService.ts`) — read-only lane-block/equipment-offline impact checks, reusing the same route/impact logic as the real detectors against a locally patched (never persisted) copy of the lane list. Wired into the Incidents report form as a live preview before submitting.
+- **Analytics/KPI Dashboard** (`src/analytics/AnalyticsService.ts`, `/analytics`) — throughput, avg retrieval/queue time, task-status and request-outcome breakdowns, equipment/worker utilization, alert volume by type, incident resolution time by type. Every metric traces to a real column; deliberately does not report a "replanning frequency" metric since the pipeline's internal retry attempts aren't persisted anywhere.
+- **Global Notification Surface** (`src/app/GlobalAlertBar.tsx`) — mounted in the root layout, shows on every page except `/login`; scoped to URGENT open agent alerts and open incidents only, so it doesn't duplicate the page-local badges everything else already has.
+
+Still out of scope: the Operations Assistant NL agent, batch/multi-container requests, SLA/deadline awareness, worker-app queue/history, training scenario library, congestion trend snapshot (Phase 3), and the remaining `Alerts`/`Settings` nav stubs.
+
 ### Known pre-existing issue found during this pass
 
-`dev.db` is a long-lived, non-reset local database — not a fresh fixture per test run. Two agent-monitor tests (`ContainerManagementAgent.test.ts`'s "uses AlertRanker" case, `agent-alert-scenario.test.ts`'s e2e case) can fail or time out depending on how much state has accumulated in it (as of this writing: 164 unclaimed HIGH/URGENT containers, several lingering `REQUESTED`/`PLANNED` tasks, 18+ open `CONGESTION_HOTSPOT` alerts from prior runs) — confirmed by direct inspection of `dev.db`, not a defect in the code under test. Worth a follow-up (either a disposable test database, or an explicit reset step before `npm test`) but out of scope for this pass.
+`dev.db` is a long-lived, non-reset local database — not a fresh fixture per test run. Agent-monitor and e2e tests that grab "the first available X" can fail or time out depending on how much state has accumulated in it, confirmed by direct inspection of `dev.db` rather than a defect in the code under test — including, during this Phase 2 pass, a self-inflicted case where manual `curl` smoke-testing left an uncommitted `Task` for the same container `WorkerTaskService.test.ts`'s `approvedTask()` helper always grabs via `findFirst`, cascading into 22 additional failures until it was cleaned up. Worth a follow-up (either a disposable test database, or an explicit reset step before `npm test`) but out of scope for this pass. In the meantime: clean up any state created by manual API testing before treating a test run as a baseline.

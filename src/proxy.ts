@@ -41,6 +41,8 @@ export const config = {
     "/equipment/:path*",
     "/workers/:path*",
     "/audit/:path*",
+    "/incidents/:path*",
+    "/analytics/:path*",
     "/api/:path*",
   ],
 };

@@ -116,7 +116,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-const DISABLED_NAV_ITEMS = ["Alerts", "Analytics", "Settings"];
+const DISABLED_NAV_ITEMS = ["Alerts", "Settings"];
 
 const NAV_LINKS: { label: string; targetId: string }[] = [
   { label: "Dashboard", targetId: "top" },
@@ -130,6 +130,7 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [workers, setWorkers] = useState<WorkerSummary[]>([]);
   const [agentAlerts, setAgentAlerts] = useState<AgentAlertSummary[]>([]);
+  const [openIncidentCount, setOpenIncidentCount] = useState(0);
   const [requestText, setRequestText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResponse | null>(null);
@@ -159,13 +160,14 @@ export default function Dashboard() {
 
   const refresh = useCallback(async () => {
     try {
-      const [yardData, taskData, simStatus, agentStatus, alertData, workerData] = await Promise.all([
+      const [yardData, taskData, simStatus, agentStatus, alertData, workerData, incidentData] = await Promise.all([
         api<YardSummary>("/api/yard"),
         api<{ tasks: TaskRow[] }>("/api/tasks"),
         api<{ running: boolean }>("/api/simulation/status"),
         api<{ running: boolean }>("/api/agent/status"),
         api<{ alerts: AgentAlertSummary[] }>("/api/agent/alerts"),
         api<{ workers: WorkerSummary[] }>("/api/workers"),
+        api<{ incidents: { status: string }[] }>("/api/incidents?status=OPEN"),
       ]);
       setYard(yardData);
       setTasks(taskData.tasks);
@@ -176,6 +178,7 @@ export default function Dashboard() {
         alertData.alerts.filter((a) => a.status === "OPEN" || a.status === "ACKNOWLEDGED").length,
       );
       setWorkers(workerData.workers);
+      setOpenIncidentCount(incidentData.incidents.length);
       setApiHealthy(true);
     } catch {
       setApiHealthy(false);
@@ -205,6 +208,7 @@ export default function Dashboard() {
     [TOPICS.YARD_EQUIPMENT_CHANGED]: debouncedRefresh,
     [TOPICS.AGENT_ALERT_RAISED]: debouncedRefresh,
     [TOPICS.AGENT_ALERT_RESOLVED]: debouncedRefresh,
+    [TOPICS.INCIDENT_CHANGED]: debouncedRefresh,
   });
 
   useEffect(() => {
@@ -306,6 +310,13 @@ export default function Dashboard() {
           <Link href="/audit" className={styles.navItem}>
             Audit Trail
           </Link>
+          <Link href="/incidents" className={styles.navItem}>
+            Incidents
+            {openIncidentCount > 0 && <span className={styles.navCountDot}>{openIncidentCount}</span>}
+          </Link>
+          <Link href="/analytics" className={styles.navItem}>
+            Analytics
+          </Link>
           <Link href="/simulation" className={styles.navItem}>
             Simulation
             {simRunning && <span className={styles.navLiveDot} />}
@@ -376,6 +387,10 @@ export default function Dashboard() {
             <Link href="/simulation" className={`${styles.overviewCard} ${blockedLaneCount > 0 ? styles.overviewCardWarn : ""}`}>
               <span className={styles.overviewValue}>{blockedLaneCount}</span>
               <span className={styles.overviewLabel}>Blocked lanes</span>
+            </Link>
+            <Link href="/incidents" className={`${styles.overviewCard} ${openIncidentCount > 0 ? styles.overviewCardAlert : ""}`}>
+              <span className={styles.overviewValue}>{openIncidentCount}</span>
+              <span className={styles.overviewLabel}>Open incidents</span>
             </Link>
             <Link href="/equipment" className={styles.overviewCard}>
               <span className={styles.overviewValue}>

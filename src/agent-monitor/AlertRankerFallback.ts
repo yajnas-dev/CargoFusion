@@ -18,8 +18,17 @@ export function fallbackRank(candidates: CandidateAlert[]): RankedAlert[] {
 
 function templateFor(candidate: CandidateAlert): string {
   switch (candidate.type) {
-    case "BLOCKED_LANE_IMPACT":
+    case "BLOCKED_LANE_IMPACT": {
+      const alt = candidate.subject.alternateRoute as { estimatedSeconds: number } | null;
+      const delay = candidate.subject.delaySeconds as number | null;
+      if (alt && delay !== null) {
+        return `Lane ${candidate.subject.laneId} is blocked and sits on the route of an active task. An alternate route exists (~${Math.round(alt.estimatedSeconds)}s, ${delay}s slower) — unblocking would still be faster than the detour.`;
+      }
+      if (!alt) {
+        return `Lane ${candidate.subject.laneId} is blocked and sits on the route of an active task, with no alternate route available — this task cannot proceed until it's unblocked.`;
+      }
       return `Lane ${candidate.subject.laneId} is blocked and sits on the route of an active task — unblocking it would let that task proceed.`;
+    }
     case "AGING_TASK":
       return `Task ${candidate.taskId} has been waiting for supervisor action since ${candidate.subject.statusSince}.`;
     case "IDLE_EQUIPMENT_BACKLOG":

@@ -240,6 +240,8 @@ enum AuditAction {
   AGENT_ALERT_RAISED
   AGENT_ALERT_APPLIED
   AGENT_ALERT_DISMISSED
+  INCIDENT_REPORTED
+  INCIDENT_RESOLVED
 }
 
 // Immutable log, per report section 14 (audit of every access decision and
@@ -313,6 +315,40 @@ model AgentAlert {
   @@index([type])
   @@index([taskId])
   @@index([dedupeKey, status])
+}
+
+enum IncidentType {
+  EQUIPMENT_OFFLINE
+  LANE_BLOCKED
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+// A real disruption with a lifecycle — equipment failure/lane blockage were
+// previously just a status flip (Equipment.status / YardLane.blocked) with
+// no cause, duration, or resolution record (Port Operations Roadmap Phase
+// 2). Reporting/resolving an incident still goes through the same
+// underlying mutation (DemoControls.setEquipmentStatus / blockLane /
+// unblockLane) — this model adds the record on top, it doesn't replace the
+// state fields those services already maintain.
+model Incident {
+  id                 String         @id @default(cuid())
+  type               IncidentType
+  subjectId          String // equipmentId or laneId depending on type
+  status             IncidentStatus @default(OPEN)
+  cause              String?
+  reportedBy         String
+  startedAt          DateTime       @default(now())
+  resolvedAt         DateTime?
+  resolvedBy         String?
+  resolutionNoteJson String?
+
+  @@index([status])
+  @@index([type])
+  @@index([subjectId])
 }
 
 // Persists what MockTOSAdapter.writeRecommendation() sends "back to the

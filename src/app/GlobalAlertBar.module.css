@@ -1,0 +1,49 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: rgba(229, 72, 77, 0.14);
+  border-bottom: 1px solid rgba(229, 72, 77, 0.35);
+  color: var(--ops-text);
+  font-size: 0.82rem;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.icon {
+  color: var(--ops-red);
+  flex-shrink: 0;
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+}
+
+.links {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.link {
+  color: var(--ops-red);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--ops-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 2px;
+}
+
+.dismiss:hover {
+  color: var(--ops-text);
+}
