@@ -123,6 +123,67 @@ describe("RetrievalRequestService", () => {
   });
 });
 
+describe("RetrievalRequestService.submitBatch", () => {
+  const createdTaskIds: string[] = [];
+  const mutatedContainerIds: string[] = [];
+
+  afterEach(async () => {
+    if (createdTaskIds.length > 0) {
+      await prisma.auditEvent.deleteMany({ where: { taskId: { in: createdTaskIds } } });
+      await prisma.recommendation.deleteMany({ where: { taskId: { in: createdTaskIds } } });
+      await prisma.task.deleteMany({ where: { id: { in: createdTaskIds } } });
+      createdTaskIds.length = 0;
+    }
+    for (const id of mutatedContainerIds) {
+      await prisma.container.update({ where: { id }, data: { status: "IN_YARD", retrievalEligible: true } });
+    }
+    mutatedContainerIds.length = 0;
+  });
+
+  it("processes each line independently through the exact same submit() path", async () => {
+    const containers = await prisma.container.findMany({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+      take: 2,
+    });
+    expect(containers.length).toBe(2);
+
+    const service = new RetrievalRequestService(new MockTOSAdapter(), null);
+    const items = await service.submitBatch(
+      [`Retrieve ${containers[0].id}`, `Retrieve ${containers[1].id} urgently`],
+      "test-operator",
+    );
+
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      expect(item.error).toBeUndefined();
+      expect(item.response?.planResult?.status).toBe("READY");
+      if (item.response?.task) createdTaskIds.push(item.response.task.id);
+    }
+    mutatedContainerIds.push(containers[0].id, containers[1].id);
+  });
+
+  it("isolates one line with no resolvable container from the rest of the batch", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new RetrievalRequestService(new MockTOSAdapter(), null);
+
+    const items = await service.submitBatch(
+      ["nothing resembling a container id here", `Retrieve ${container!.id}`],
+      "test-operator",
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items[0].error).toBeUndefined();
+    expect(items[0].response?.task).toBeUndefined(); // nothing resolved, no task created
+    expect(items[1].response?.planResult?.status).toBe("READY");
+    if (items[1].response?.task) {
+      createdTaskIds.push(items[1].response.task.id);
+      mutatedContainerIds.push(container!.id);
+    }
+  });
+});
+
 describe.runIf(!!process.env.GEMINI_API_KEY)("RetrievalRequestService (live Gemini integration)", () => {
   const createdTaskIds: string[] = [];
   const mutatedContainerIds: string[] = [];

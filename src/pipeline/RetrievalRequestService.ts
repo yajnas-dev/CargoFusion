@@ -12,6 +12,12 @@ export interface RetrievalRequestResponse extends Partial<SubmitRequestResult> {
   explanation: string;
 }
 
+export interface BatchRetrievalRequestItem {
+  rawRequest: string;
+  response?: RetrievalRequestResponse;
+  error?: string;
+}
+
 /**
  * The single live entry point for turning a natural-language retrieval
  * request into a persisted, explained plan: interpret -> submit to the
@@ -65,5 +71,27 @@ export class RetrievalRequestService {
     }
 
     return { interpreted, explanation, ...result };
+  }
+
+  /**
+   * Batch submission (Port Operations Roadmap Phase 3) — one request per
+   * line, each going through the exact same interpret -> submit -> explain
+   * path as a single request, not a separate bulk pipeline. A real shift
+   * gets bursts of requests (a manifest pasted in, several containers
+   * needed for one outbound truck), not one-at-a-time typing — this is
+   * about handling that volume, not about parsing "and" inside one
+   * sentence. Each line is isolated: one failing doesn't stop the rest.
+   */
+  async submitBatch(rawRequests: string[], requestedBy: string): Promise<BatchRetrievalRequestItem[]> {
+    const items: BatchRetrievalRequestItem[] = [];
+    for (const rawRequest of rawRequests) {
+      try {
+        const response = await this.submit(rawRequest, requestedBy);
+        items.push({ rawRequest, response });
+      } catch (err) {
+        items.push({ rawRequest, error: err instanceof Error ? err.message : "Unexpected error." });
+      }
+    }
+    return items;
   }
 }

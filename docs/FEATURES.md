@@ -165,6 +165,10 @@ Surfaced inline in the Incidents page's report form — check the impact before 
 
 `YardLane.congestionWeight` only ever held the current value — no history to compute a trend from. `recordSnapshot()` writes one `CongestionSnapshot` row per lane, called once per Container Management Agent cycle (`ContainerManagementAgent.runCycle()`, best-effort — a snapshot failure never blocks alert detection). `getTrend()`/`getTopTrends()` do a simple linear extrapolation from the oldest to newest reading in a lookback window (clamped to the real `[1.0, 3.0]` congestion range) — explicitly labeled a straight-line projection, not a forecast model, both in the code and in the `/analytics` page's caveat text. `GET /api/analytics/congestion-trend`.
 
+## Batch Requests (`RetrievalRequestService.submitBatch`)
+
+One request per line, each going through the exact same interpret → submit → explain path as a single request (`submit()`, looped) — not a separate bulk pipeline, and the single-container `RequestInterpreter`/`InterpretedRequest` shape was deliberately left untouched rather than extended to parse "and" inside one sentence, since a real shift gets bursts of requests (a manifest pasted in) more often than compound sentences. Each line is isolated — one failing (no resolvable container, an unexpected error) doesn't stop the rest. `POST /api/retrieval-requests/batch` (capped at 20/request), the dashboard's "Batch (multiple)" toggle on the Retrieval Request panel, with a per-line result summary and a link to the Approval Queue.
+
 ## Confidence / Policy Gate (`src/policy/ConfidenceGate.ts`)
 
 A transparent composite score for any `READY` plan — explicitly *not* claimed to be statistically validated, matching the report's own caveat about this kind of decision-support number:
@@ -211,6 +215,7 @@ Thin route handlers with no business logic beyond wiring — every route just ca
 | Route | What it does |
 |---|---|
 | `POST /api/retrieval-requests` | The main entry point: interpret → pipeline → persist → explain, in one call. |
+| `POST /api/retrieval-requests/batch` | Same path, looped over up to 20 lines; each isolated from the others' failures. |
 | `GET /api/tasks`, `GET /api/tasks/[id]` | Task list (optionally `?status=PLANNED,REQUESTED` for the Approval Queue) / single task with full detail (container, equipment, worker, recommendations, audit trail). |
 | `POST /api/tasks/[id]/{approve,reject,override,dispatch,start,confirm,complete}` | The approval and worker-lifecycle actions. |
 | `GET /api/yard` | Yard graph (nodes/lanes/blocks), equipment, and aggregate stats for the dashboard. |
@@ -235,7 +240,7 @@ A dark, always-on "ops console" theme (not adaptive to system light/dark — a d
 - **Shift-Start Overview** — a row of clickable cards above the stat row answering "what needs me right now": pending approvals, aging/unactioned alerts, open alerts by severity, blocked lanes, equipment/worker availability — each linking straight to the page that acts on it. Derived from data already being polled, no extra endpoints.
 - **Stat row** — total containers, containers currently in yard, active tasks, equipment availability, crane utilization, average congestion — all real aggregate queries, no placeholder numbers.
 - **Yard Map (Live)** — a real 2D SVG rendering of the actual yard graph (the same node coordinates and lane topology A* uses, not a decorative illustration). Equipment markers smoothly animate to their new position whenever `currentNodeId` changes between polls; lanes are colored by real congestion weight and dashed when blocked; the most recently computed route is highlighted with a looping marker labeled "Planned route" (not implying live GPS tracking, since it isn't one).
-- **Retrieval Request / Container Details / AI Recommendations** — the three-column heart of the demo: submit a request, see the resolved container, see the equipment/route/twin/confidence recommendation with a full factor breakdown, and the Approve/Reject/Override controls.
+- **Retrieval Request / Container Details / AI Recommendations** — the three-column heart of the demo: submit a request, see the resolved container, see the equipment/route/twin/confidence recommendation with a full factor breakdown, and the Approve/Reject/Override controls. A "Batch (multiple)" toggle swaps the single input for a one-request-per-line textarea, submitting through the same pipeline per line.
 - **Status stepper** — the task's real state machine (`REQUESTED → PLANNED → APPROVED → DISPATCHED → IN_PROGRESS → RETRIEVED → COMPLETED`) as a horizontal progress indicator.
 - **Simulation Controls** — buttons for every `DemoControls` action plus the background-simulation toggle.
 - **Task Tracking** — a live table of every task with an inline "Mark Completed" action for anything sitting at `RETRIEVED`.

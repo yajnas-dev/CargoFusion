@@ -495,9 +495,94 @@
 
 /* Retrieval request form */
 
+.panelHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panelHeaderRow h2 {
+  margin-bottom: 0;
+}
+
+.batchToggle {
+  padding: 5px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-muted);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.batchToggle:hover {
+  color: var(--ops-text);
+  border-color: var(--ops-accent);
+}
+
 .requestForm {
   display: flex;
   gap: 8px;
+}
+
+.batchForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.batchTextarea {
+  padding: 9px 11px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.batchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.batchResultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: var(--ops-panel-bg-alt);
+  font-size: 0.8rem;
+}
+
+.batchResultQuery {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batchResultGood {
+  color: var(--ops-green);
+  white-space: nowrap;
+}
+
+.batchResultBad {
+  color: var(--ops-amber);
+  white-space: nowrap;
+}
+
+.batchQueueLink {
+  align-self: flex-start;
+  color: var(--ops-accent);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .textInput,

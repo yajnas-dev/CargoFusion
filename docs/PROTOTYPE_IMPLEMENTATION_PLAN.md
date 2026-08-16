@@ -312,7 +312,11 @@ Still out of scope: batch/multi-container requests, and the remaining `Alerts`/`
 - **Training/Validation Scenario Library** (`src/simulation/scenarios.ts`) — six named `DemoControls` compositions, plus the one real gap it exposed: `DemoControls.setWorkerStatus()` didn't exist yet.
 - **Congestion Trend Snapshot** (`src/analytics/CongestionTrendService.ts`) — new `CongestionSnapshot` model, recorded once per Container Management Agent cycle; a linear-extrapolation projection, explicitly not a forecast model.
 
-Still out of scope: batch/multi-container requests, and the remaining `Alerts`/`Settings` nav stubs.
+### Port Operations Roadmap — Batch/Multi-Container Requests (deferred item, closed out)
+
+`RetrievalRequestService.submitBatch()` loops the existing single-request `submit()` per line rather than extending `RequestInterpreter`/`InterpretedRequest` to parse multiple containers out of one sentence — deliberately, to avoid touching the well-tested single-container interpretation core for a capability that's really about handling request *volume* (a pasted manifest, several containers for one outbound truck), not about parsing "and" inside a sentence. `POST /api/retrieval-requests/batch`, a "Batch (multiple)" toggle on the dashboard.
+
+Still out of scope: the remaining `Alerts`/`Settings` nav stubs, and Phase 4 (historical replay — deferred pending evidence operators want to scrub state rather than see aggregate KPIs).
 
 ### A second self-inflicted test-pollution lesson (see the first, above)
 

@@ -77,6 +77,15 @@ interface SubmitResponse {
   confidence?: ConfidenceAssessment;
 }
 
+interface BatchResultItem {
+  rawRequest: string;
+  response?: {
+    planResult: PlanResult;
+    task?: { id: string; status: TaskStatus };
+  };
+  error?: string;
+}
+
 interface TaskRow {
   id: string;
   status: TaskStatus;
@@ -134,6 +143,10 @@ export default function Dashboard() {
   const [requestText, setRequestText] = useState("");
   const [dueBy, setDueBy] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchText, setBatchText] = useState("");
+  const [batchResults, setBatchResults] = useState<BatchResultItem[] | null>(null);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [overrideEquipmentId, setOverrideEquipmentId] = useState("");
@@ -237,6 +250,31 @@ export default function Dashboard() {
       setError((err as Error).message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function submitBatch(e: React.FormEvent) {
+    e.preventDefault();
+    const lines = batchText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    setBatchSubmitting(true);
+    setError(null);
+    setBatchResults(null);
+    try {
+      const data = await api<{ items: BatchResultItem[] }>("/api/retrieval-requests/batch", {
+        method: "POST",
+        body: JSON.stringify({ requests: lines }),
+      });
+      setBatchResults(data.items);
+      setBatchText("");
+      await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBatchSubmitting(false);
     }
   }
 
@@ -460,28 +498,80 @@ export default function Dashboard() {
           <div className={styles.grid2}>
             <div className={styles.col} id="search-card">
               <div className={styles.panel}>
-                <h2>Retrieval Request</h2>
-                <form onSubmit={submitRequest} className={styles.requestForm}>
-                  <input
-                    type="text"
-                    aria-label="Retrieval request"
-                    placeholder='e.g. "MSKU1234567" or "Get it out as quickly as possible"'
-                    value={requestText}
-                    onChange={(e) => setRequestText(e.target.value)}
-                    className={styles.textInput}
-                  />
-                  <input
-                    type="datetime-local"
-                    aria-label="Due by (optional)"
-                    title="Due by (optional)"
-                    value={dueBy}
-                    onChange={(e) => setDueBy(e.target.value)}
-                    className={styles.dueByInput}
-                  />
-                  <button type="submit" disabled={submitting} className={styles.primaryButton}>
-                    {submitting ? "Planning…" : "Search"}
+                <div className={styles.panelHeaderRow}>
+                  <h2>Retrieval Request</h2>
+                  <button
+                    type="button"
+                    className={styles.batchToggle}
+                    onClick={() => {
+                      setBatchMode((v) => !v);
+                      setBatchResults(null);
+                    }}
+                  >
+                    {batchMode ? "Single request" : "Batch (multiple)"}
                   </button>
-                </form>
+                </div>
+
+                {!batchMode && (
+                  <form onSubmit={submitRequest} className={styles.requestForm}>
+                    <input
+                      type="text"
+                      aria-label="Retrieval request"
+                      placeholder='e.g. "MSKU1234567" or "Get it out as quickly as possible"'
+                      value={requestText}
+                      onChange={(e) => setRequestText(e.target.value)}
+                      className={styles.textInput}
+                    />
+                    <input
+                      type="datetime-local"
+                      aria-label="Due by (optional)"
+                      title="Due by (optional)"
+                      value={dueBy}
+                      onChange={(e) => setDueBy(e.target.value)}
+                      className={styles.dueByInput}
+                    />
+                    <button type="submit" disabled={submitting} className={styles.primaryButton}>
+                      {submitting ? "Planning…" : "Search"}
+                    </button>
+                  </form>
+                )}
+
+                {batchMode && (
+                  <form onSubmit={submitBatch} className={styles.batchForm}>
+                    <textarea
+                      aria-label="Batch retrieval requests, one per line"
+                      placeholder={"One request per line, e.g.\nMSKU1234567\nTCLU7654321 urgently\nHBBU9998887"}
+                      value={batchText}
+                      onChange={(e) => setBatchText(e.target.value)}
+                      className={styles.batchTextarea}
+                      rows={4}
+                    />
+                    <button type="submit" disabled={batchSubmitting || !batchText.trim()} className={styles.primaryButton}>
+                      {batchSubmitting ? "Submitting…" : "Submit batch"}
+                    </button>
+                    {batchResults && (
+                      <div className={styles.batchResults}>
+                        {batchResults.map((item, i) => (
+                          <div key={i} className={styles.batchResultRow}>
+                            <span className={styles.batchResultQuery}>{item.rawRequest}</span>
+                            <span
+                              className={
+                                item.error || !item.response?.task
+                                  ? styles.batchResultBad
+                                  : styles.batchResultGood
+                              }
+                            >
+                              {item.error ?? (item.response?.task ? `${item.response.task.status}` : "no task created")}
+                            </span>
+                          </div>
+                        ))}
+                        <Link href="/tasks" className={styles.batchQueueLink}>
+                          Review in Approval Queue →
+                        </Link>
+                      </div>
+                    )}
+                  </form>
+                )}
               </div>
 
               {result?.planResult.container && (
