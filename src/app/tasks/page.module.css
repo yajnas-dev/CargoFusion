@@ -1,0 +1,277 @@
+.shell {
+  min-height: 100vh;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.countBadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.75rem;
+  color: var(--ops-muted);
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.readOnlyNote {
+  font-size: 0.78rem;
+  color: var(--ops-muted);
+  font-style: italic;
+}
+
+.bulkButton {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 7px;
+  background: var(--ops-green);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bulkButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorBar {
+  padding: 8px 28px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+.body {
+  padding: 22px 28px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emptyState {
+  color: var(--ops-muted);
+  font-size: 0.85rem;
+  padding: 30px;
+  border: 1px dashed var(--ops-border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.card {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardAging {
+  border-color: rgba(210, 153, 34, 0.4);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cardHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.containerId {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.priorityBadge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border: 1px solid var(--ops-border);
+}
+
+.priorityURGENT {
+  color: #fff;
+  background: var(--ops-red);
+  border-color: var(--ops-red);
+}
+
+.priorityHIGH {
+  color: var(--ops-amber);
+  border-color: rgba(210, 153, 34, 0.4);
+}
+
+.priorityMEDIUM {
+  color: var(--ops-accent);
+  border-color: rgba(88, 143, 255, 0.35);
+}
+
+.priorityLOW {
+  color: var(--ops-muted);
+}
+
+.statusTag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.68rem;
+  color: var(--ops-muted);
+}
+
+.agingTag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--ops-amber);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.ageText {
+  font-size: 0.78rem;
+  color: var(--ops-muted);
+  white-space: nowrap;
+}
+
+.cardMeta {
+  font-size: 0.8rem;
+  color: var(--ops-muted);
+}
+
+.recRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.82rem;
+}
+
+.confidenceHIGH {
+  color: var(--ops-green);
+  font-weight: 700;
+}
+
+.confidenceMEDIUM {
+  color: var(--ops-amber);
+  font-weight: 700;
+}
+
+.confidenceLOW {
+  color: var(--ops-red);
+  font-weight: 700;
+}
+
+.equipmentTag {
+  color: var(--ops-muted);
+}
+
+.noPlanNote {
+  font-size: 0.82rem;
+  color: var(--ops-amber);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.approveButton,
+.rejectButton,
+.overrideButton,
+.confirmOverrideButton {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+}
+
+.approveButton {
+  background: var(--ops-green);
+}
+
+.rejectButton {
+  background: var(--ops-red);
+}
+
+.overrideButton,
+.confirmOverrideButton {
+  background: var(--ops-amber);
+  color: #1a1200;
+}
+
+.confirmOverrideButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.overrideForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ops-border);
+}
+
+.select,
+.textInput {
+  padding: 7px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-size: 0.82rem;
+}

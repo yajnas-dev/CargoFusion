@@ -98,6 +98,12 @@ interface SessionUser {
 
 interface AgentAlertSummary {
   status: "OPEN" | "ACKNOWLEDGED" | "APPLIED" | "DISMISSED";
+  severity: Priority;
+  type: string;
+}
+
+interface WorkerSummary {
+  status: "AVAILABLE" | "BUSY" | "OFF_SHIFT";
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -110,7 +116,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-const DISABLED_NAV_ITEMS = ["Equipment", "Trucks", "Alerts", "Analytics", "Settings"];
+const DISABLED_NAV_ITEMS = ["Alerts", "Analytics", "Settings"];
 
 const NAV_LINKS: { label: string; targetId: string }[] = [
   { label: "Dashboard", targetId: "top" },
@@ -122,6 +128,8 @@ export default function Dashboard() {
   const router = useRouter();
   const [yard, setYard] = useState<YardSummary | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [workers, setWorkers] = useState<WorkerSummary[]>([]);
+  const [agentAlerts, setAgentAlerts] = useState<AgentAlertSummary[]>([]);
   const [requestText, setRequestText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResponse | null>(null);
@@ -151,20 +159,23 @@ export default function Dashboard() {
 
   const refresh = useCallback(async () => {
     try {
-      const [yardData, taskData, simStatus, agentStatus, agentAlerts] = await Promise.all([
+      const [yardData, taskData, simStatus, agentStatus, alertData, workerData] = await Promise.all([
         api<YardSummary>("/api/yard"),
         api<{ tasks: TaskRow[] }>("/api/tasks"),
         api<{ running: boolean }>("/api/simulation/status"),
         api<{ running: boolean }>("/api/agent/status"),
         api<{ alerts: AgentAlertSummary[] }>("/api/agent/alerts"),
+        api<{ workers: WorkerSummary[] }>("/api/workers"),
       ]);
       setYard(yardData);
       setTasks(taskData.tasks);
       setSimRunning(simStatus.running);
       setAgentRunning(agentStatus.running);
+      setAgentAlerts(alertData.alerts);
       setOpenAgentAlertCount(
-        agentAlerts.alerts.filter((a) => a.status === "OPEN" || a.status === "ACKNOWLEDGED").length,
+        alertData.alerts.filter((a) => a.status === "OPEN" || a.status === "ACKNOWLEDGED").length,
       );
+      setWorkers(workerData.workers);
       setApiHealthy(true);
     } catch {
       setApiHealthy(false);
@@ -250,6 +261,17 @@ export default function Dashboard() {
   const blockedLaneCount = yard ? yard.lanes.filter((l) => l.blocked).length : 0;
   const alertCount = blockedLaneCount + openAgentAlertCount + (result?.planResult.twin?.issues.length ?? 0);
 
+  // Shift-Start Overview: everything that needs a decision right now, derived
+  // from data already being polled — no extra endpoints.
+  const pendingApprovalCount = tasks.filter((t) => t.status === "REQUESTED" || t.status === "PLANNED").length;
+  const openAlerts = agentAlerts.filter((a) => a.status === "OPEN" || a.status === "ACKNOWLEDGED");
+  const agingTaskAlertCount = openAlerts.filter(
+    (a) => a.type === "AGING_TASK" || a.type === "URGENT_CONTAINER_UNACTIONED",
+  ).length;
+  const openBySeverity = (severity: Priority) => openAlerts.filter((a) => a.severity === severity).length;
+  const equipmentAvailableCount = yard ? yard.equipment.filter((e) => e.status === "AVAILABLE").length : 0;
+  const workersAvailableCount = workers.filter((w) => w.status === "AVAILABLE").length;
+
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -271,6 +293,19 @@ export default function Dashboard() {
               {link.label}
             </a>
           ))}
+          <Link href="/tasks" className={styles.navItem}>
+            Approval Queue
+            {pendingApprovalCount > 0 && <span className={styles.navCountDot}>{pendingApprovalCount}</span>}
+          </Link>
+          <Link href="/equipment" className={styles.navItem}>
+            Equipment
+          </Link>
+          <Link href="/workers" className={styles.navItem}>
+            Workers
+          </Link>
+          <Link href="/audit" className={styles.navItem}>
+            Audit Trail
+          </Link>
           <Link href="/simulation" className={styles.navItem}>
             Simulation
             {simRunning && <span className={styles.navLiveDot} />}
@@ -323,6 +358,39 @@ export default function Dashboard() {
         </header>
 
         <div className={styles.content}>
+          <div className={styles.overviewGrid}>
+            <Link href="/tasks" className={`${styles.overviewCard} ${pendingApprovalCount > 0 ? styles.overviewCardAlert : ""}`}>
+              <span className={styles.overviewValue}>{pendingApprovalCount}</span>
+              <span className={styles.overviewLabel}>Pending approvals</span>
+            </Link>
+            <Link href="/agent" className={`${styles.overviewCard} ${agingTaskAlertCount > 0 ? styles.overviewCardWarn : ""}`}>
+              <span className={styles.overviewValue}>{agingTaskAlertCount}</span>
+              <span className={styles.overviewLabel}>Aging / unactioned</span>
+            </Link>
+            <Link href="/agent" className={`${styles.overviewCard} ${openBySeverity("URGENT") > 0 ? styles.overviewCardAlert : ""}`}>
+              <span className={styles.overviewValue}>
+                {openBySeverity("URGENT")} / {openBySeverity("HIGH")}
+              </span>
+              <span className={styles.overviewLabel}>Open alerts (urgent / high)</span>
+            </Link>
+            <Link href="/simulation" className={`${styles.overviewCard} ${blockedLaneCount > 0 ? styles.overviewCardWarn : ""}`}>
+              <span className={styles.overviewValue}>{blockedLaneCount}</span>
+              <span className={styles.overviewLabel}>Blocked lanes</span>
+            </Link>
+            <Link href="/equipment" className={styles.overviewCard}>
+              <span className={styles.overviewValue}>
+                {equipmentAvailableCount} / {yard?.equipment.length ?? 0}
+              </span>
+              <span className={styles.overviewLabel}>Equipment available</span>
+            </Link>
+            <Link href="/workers" className={styles.overviewCard}>
+              <span className={styles.overviewValue}>
+                {workersAvailableCount} / {workers.length}
+              </span>
+              <span className={styles.overviewLabel}>Workers available</span>
+            </Link>
+          </div>
+
           {yard && (
             <div className={styles.statRow}>
               <StatCard label="Total containers" value={yard.totalContainers.toLocaleString()} />

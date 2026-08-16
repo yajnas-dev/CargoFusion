@@ -99,6 +99,18 @@
   animation: navPulse 1.4s ease-in-out infinite;
 }
 
+.navCountDot {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ops-red);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 @keyframes navPulse {
   0%,
   100% {
@@ -252,6 +264,52 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* Shift-Start Overview */
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.overviewCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.overviewCard:hover {
+  border-color: var(--ops-accent);
+  transform: translateY(-1px);
+}
+
+.overviewCardWarn {
+  border-color: rgba(210, 153, 34, 0.5);
+}
+
+.overviewCardAlert {
+  border-color: rgba(229, 72, 77, 0.55);
+}
+
+.overviewValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.overviewLabel {
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* Stat row */

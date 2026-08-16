@@ -268,3 +268,30 @@ Note for contributors: `npm run db:seed` must be run once after `npm run db:migr
 - `package.json` scripts: `dev`, `build`, `start`, `lint`, `test`, `typecheck`.
 
 Per execution rules, implementation will proceed one phase at a time with explain → implement → test → typecheck/lint → review against report → fix → update this plan → summarize → stop for approval, before moving to Phase 2.
+
+---
+
+## Post-Phase-16 rework (not covered by the numbered phases above)
+
+The phase log above ends at Phase 16 (end-to-end demo testing). Real work continued past that point without being folded back into this plan — anyone planning off this file alone would miss all of it. This section closes that gap; see [`FEATURES.md`](./FEATURES.md) for the up-to-date technical reference (it, not this file, is the current source of truth for "what exists").
+
+- **Real authentication** — `User`/session model, JWT cookie sessions (`src/auth/`), a `/login` page, and role-gated routes (`OPERATOR`/`SUPERVISOR`/`WORKER`), replacing an earlier no-auth prototype state.
+- **The event bus wired for real** — `InProcessEventBus` + SSE (`GET /api/events`) actually pushing `TASK_CHANGED`/`RECOMMENDATION_CREATED`/`YARD_LANE_CHANGED`/`YARD_EQUIPMENT_CHANGED`/`AGENT_ALERT_*` to the dashboard, `/simulation`, `/worker`, and `/agent`, replacing polling as the primary update mechanism (a longer-interval poll remains as a fallback).
+- **`RetrievalAgent` reconciled into `RetrievalRequestService`** (`src/pipeline/`) — the disconnected earlier scaffold was replaced with one real interpret → pipeline → explain entry point.
+- **The Container Management Agent** (`src/agent-monitor/`) — an entire second agent layer, not mentioned anywhere above: seven deterministic detectors, Gemini-or-fallback ranking, a persisted `AgentAlert` lifecycle, and a `/agent` control room. See `FEATURES.md`'s "Container Management Agent" section for the full description.
+- **Real-travel-time equipment movement and proactive retrieval** — `Equipment` now models in-progress movement with real transit time instead of teleporting (`src/domain/equipmentMovement.ts`), and a seventh detector (`unclaimedPriorityContainer`) proactively surfaces unrequested high-priority containers.
+
+### Port Operations Roadmap — Phase 0 & 1 (this pass)
+
+Following a operator-shift-focused roadmap review (see the plan history for "Port Operations Feature Roadmap"), the product's own `DISABLED_NAV_ITEMS` stub list was treated as the honest gap analysis it is. This pass closed the highest-value items:
+
+- **Supervisor Approval Queue** (`/tasks`) — every `REQUESTED`/`PLANNED` task in one place, sorted by priority then age, with inline approve/reject/override and a bulk high-confidence approve action. This was the single biggest gap: the dashboard's approval panel only ever showed the task tied to whatever was just searched, with no way to browse everything actually awaiting a decision.
+- **Shift-Start Overview** — clickable summary cards on the dashboard (pending approvals, aging/unactioned alerts, open alerts by severity, blocked lanes, equipment/worker availability), derived from data already being polled.
+- **Audit Trail Viewer** (`/audit`, `GET /api/audit`) — every mutating service already wrote an `AuditEvent`; nothing read them back until now.
+- **Equipment** (`/equipment`, `GET /api/equipment`) and **Workers** (`/workers`) list pages — real pages behind two of the five former `DISABLED_NAV_ITEMS` stubs, backed by existing models plus the per-equipment workload count `EquipmentAllocationService` already computed internally.
+
+Explicitly out of scope for this pass (see the roadmap's Phase 2/3): incident records, reroute/what-if assistance, the Analytics/KPI dashboard, the Operations Assistant NL agent, batch requests, and the remaining `Alerts`/`Analytics`/`Settings` nav stubs.
+
+### Known pre-existing issue found during this pass
+
+`dev.db` is a long-lived, non-reset local database — not a fresh fixture per test run. Two agent-monitor tests (`ContainerManagementAgent.test.ts`'s "uses AlertRanker" case, `agent-alert-scenario.test.ts`'s e2e case) can fail or time out depending on how much state has accumulated in it (as of this writing: 164 unclaimed HIGH/URGENT containers, several lingering `REQUESTED`/`PLANNED` tasks, 18+ open `CONGESTION_HOTSPOT` alerts from prior runs) — confirmed by direct inspection of `dev.db`, not a defect in the code under test. Worth a follow-up (either a disposable test database, or an explicit reset step before `npm test`) but out of scope for this pass.

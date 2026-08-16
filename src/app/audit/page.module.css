@@ -1,0 +1,148 @@
+.shell {
+  min-height: 100vh;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.countBadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.75rem;
+  color: var(--ops-muted);
+}
+
+.filterForm {
+  display: flex;
+  gap: 8px;
+}
+
+.textInput,
+.select {
+  padding: 7px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-size: 0.82rem;
+}
+
+.applyButton {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  background: var(--ops-accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.applyButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorBar {
+  padding: 8px 28px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+.body {
+  padding: 22px 28px 60px;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  border-radius: 12px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--ops-border);
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--ops-muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  background: var(--ops-panel-bg-alt);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.timeCell {
+  white-space: nowrap;
+  color: var(--ops-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.actionBadge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.taskLink {
+  color: var(--ops-accent);
+}
+
+.detailsCell {
+  color: var(--ops-muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.74rem;
+  max-width: 420px;
+  word-break: break-word;
+}

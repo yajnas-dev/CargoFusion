@@ -1,0 +1,147 @@
+.shell {
+  min-height: 100vh;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.countBadge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-size: 0.75rem;
+  color: var(--ops-muted);
+}
+
+.filters {
+  display: flex;
+  gap: 6px;
+}
+
+.filterButton {
+  padding: 6px 12px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.filterButtonActive {
+  background: var(--ops-accent-dim);
+  color: var(--ops-text);
+  font-weight: 600;
+}
+
+.errorBar {
+  padding: 8px 28px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+.body {
+  padding: 22px 28px 60px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--ops-border);
+}
+
+.table th {
+  color: var(--ops-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  background: var(--ops-panel-bg-alt);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.statusBadge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--ops-border);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.statusAVAILABLE {
+  color: var(--ops-green);
+  border-color: rgba(63, 185, 80, 0.35);
+}
+
+.statusBUSY {
+  color: var(--ops-amber);
+  border-color: rgba(210, 153, 34, 0.35);
+}
+
+.statusOFFLINE,
+.statusOFF_SHIFT {
+  color: var(--ops-muted);
+}
+
+.transitTag {
+  margin-left: 6px;
+  font-size: 0.68rem;
+  color: var(--ops-accent);
+  font-style: italic;
+}
+
+.nodeId {
+  color: var(--ops-muted);
+  font-size: 0.75rem;
+}
+
+.overloadedCount {
+  color: var(--ops-red);
+  font-weight: 700;
+}
