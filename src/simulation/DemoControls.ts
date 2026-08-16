@@ -5,7 +5,7 @@ import { AVERAGE_SPEED_METERS_PER_SECOND, LANE_SCALE_METERS } from "@/domain/con
 import { resolveArrivedEquipmentMovements } from "@/domain/equipmentMovement";
 import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
 import { RouteOptimizationService } from "@/optimization/RouteOptimizationService";
-import type { Equipment, EquipmentStatus, SensorEvent, YardLane } from "@/domain/types";
+import type { Equipment, EquipmentStatus, SensorEvent, Worker, WorkerStatus, YardLane } from "@/domain/types";
 
 const MIN_CONGESTION = 1.0;
 const MAX_CONGESTION = 3.0;
@@ -149,6 +149,22 @@ export class DemoControls {
     if (!equipment) return null;
     const nextStatus: EquipmentStatus = equipment.status === "AVAILABLE" ? "OFFLINE" : "AVAILABLE";
     return this.setEquipmentStatus(equipment.id, nextStatus);
+  }
+
+  /**
+   * Sets a specific worker's status directly — used by the "worker
+   * shortage" training scenario (src/simulation/scenarios.ts). Doesn't
+   * touch a worker currently BUSY on an active task; that's a dispatch
+   * conflict, not a shift-status change.
+   */
+  async setWorkerStatus(workerId: string, status: WorkerStatus): Promise<Worker> {
+    const worker = await prisma.worker.findUniqueOrThrow({ where: { id: workerId } });
+    if (worker.status === "BUSY") {
+      throw new Error(`Cannot change status of worker ${workerId}: currently BUSY on an active task.`);
+    }
+    const updated = await prisma.worker.update({ where: { id: workerId }, data: { status } });
+    eventBus.publish(TOPICS.WORKER_CHANGED, { workerId });
+    return updated;
   }
 
   async triggerRfidEvent(containerId?: string): Promise<SensorEvent | null> {

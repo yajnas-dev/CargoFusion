@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ContainerManagementAgent } from "@/agent-monitor/ContainerManagementAgent";
 import { resetCongestionHotspotState } from "@/agent-monitor/detectors/congestionHotspot";
 import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
@@ -54,6 +54,11 @@ describe("ContainerManagementAgent", () => {
   describe("runCycle", () => {
     const createdAlertIds: string[] = [];
     const mutatedEquipmentIds: string[] = [];
+    let cycleStartedAt: Date;
+
+    beforeEach(() => {
+      cycleStartedAt = new Date();
+    });
 
     afterEach(async () => {
       resetCongestionHotspotState();
@@ -66,6 +71,11 @@ describe("ContainerManagementAgent", () => {
         await prisma.equipment.update({ where: { id }, data: { status: "AVAILABLE" } });
       }
       mutatedEquipmentIds.length = 0;
+      // runCycle() also writes a CongestionSnapshot row per lane every call
+      // — clean those up too, or repeated test runs accumulate the same
+      // kind of dev.db bloat already causing flakiness elsewhere in this
+      // file (see docs/PROTOTYPE_IMPLEMENTATION_PLAN.md).
+      await prisma.congestionSnapshot.deleteMany({ where: { recordedAt: { gte: cycleStartedAt } } });
     });
 
     it("raises an AgentAlert (+ audit event) for a detected condition, using the fallback ranker when model is null", async () => {

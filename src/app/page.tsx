@@ -132,6 +132,7 @@ export default function Dashboard() {
   const [agentAlerts, setAgentAlerts] = useState<AgentAlertSummary[]>([]);
   const [openIncidentCount, setOpenIncidentCount] = useState(0);
   const [requestText, setRequestText] = useState("");
+  const [dueBy, setDueBy] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -227,9 +228,10 @@ export default function Dashboard() {
     try {
       const data = await api<SubmitResponse>("/api/retrieval-requests", {
         method: "POST",
-        body: JSON.stringify({ request: requestText }),
+        body: JSON.stringify({ request: requestText, dueBy: dueBy ? new Date(dueBy).toISOString() : undefined }),
       });
       setResult(data);
+      setDueBy("");
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -406,6 +408,8 @@ export default function Dashboard() {
             </Link>
           </div>
 
+          <OpsAssistantPanel />
+
           {yard && (
             <div className={styles.statRow}>
               <StatCard label="Total containers" value={yard.totalContainers.toLocaleString()} />
@@ -465,6 +469,14 @@ export default function Dashboard() {
                     value={requestText}
                     onChange={(e) => setRequestText(e.target.value)}
                     className={styles.textInput}
+                  />
+                  <input
+                    type="datetime-local"
+                    aria-label="Due by (optional)"
+                    title="Due by (optional)"
+                    value={dueBy}
+                    onChange={(e) => setDueBy(e.target.value)}
+                    className={styles.dueByInput}
                   />
                   <button type="submit" disabled={submitting} className={styles.primaryButton}>
                     {submitting ? "Planning…" : "Search"}
@@ -697,6 +709,90 @@ export default function Dashboard() {
             </table>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface OpsExchange {
+  question: string;
+  answer: string;
+  usedFallback: boolean;
+}
+
+const SAMPLE_QUESTIONS = [
+  "What's happening in the yard right now?",
+  "What should we prioritize?",
+  "Are there any bottlenecks?",
+];
+
+function OpsAssistantPanel() {
+  const [question, setQuestion] = useState("");
+  const [exchanges, setExchanges] = useState<OpsExchange[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed || asking) return;
+    setAsking(true);
+    setError(null);
+    try {
+      const data = await api<{ answer: string; usedFallback: boolean }>("/api/ops-assistant/ask", {
+        method: "POST",
+        body: JSON.stringify({ question: trimmed }),
+      });
+      setExchanges((prev) => [{ question: trimmed, answer: data.answer, usedFallback: data.usedFallback }, ...prev].slice(0, 5));
+      setQuestion("");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  return (
+    <div className={styles.panel}>
+      <h2>Ask Operations</h2>
+      <form
+        className={styles.requestForm}
+        onSubmit={(e) => {
+          e.preventDefault();
+          ask(question);
+        }}
+      >
+        <input
+          type="text"
+          aria-label="Ask a question about current operations"
+          placeholder="e.g. what's happening in the yard right now?"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          className={styles.textInput}
+        />
+        <button type="submit" disabled={asking || !question.trim()} className={styles.primaryButton}>
+          {asking ? "Thinking…" : "Ask"}
+        </button>
+      </form>
+      {exchanges.length === 0 && !error && (
+        <div className={styles.opsSamples}>
+          {SAMPLE_QUESTIONS.map((q) => (
+            <button key={q} type="button" className={styles.opsSampleButton} onClick={() => ask(q)}>
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+      {error && <p className={styles.errorText}>{error}</p>}
+      <div className={styles.opsExchangeList}>
+        {exchanges.map((ex, i) => (
+          <div key={i} className={styles.opsExchange}>
+            <div className={styles.opsQuestion}>{ex.question}</div>
+            <div className={styles.opsAnswer}>
+              {ex.answer}
+              {ex.usedFallback && <span className={styles.opsFallbackTag}> (fallback summary — AI unavailable)</span>}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

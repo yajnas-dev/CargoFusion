@@ -7,6 +7,7 @@ import { DETECTORS } from "@/agent-monitor/detectors";
 import { AlertRanker } from "@/agent-monitor/AlertRanker";
 import { fallbackRank } from "@/agent-monitor/AlertRankerFallback";
 import { AgentAlertService } from "@/agent-monitor/AgentAlertService";
+import { CongestionTrendService } from "@/analytics/CongestionTrendService";
 import { DEFAULT_CONFIG, type AgentMonitorConfig, type CandidateAlert, type YardSnapshotForPrompt } from "@/agent-monitor/types";
 import { prisma } from "@/domain/db";
 import { ACTIVE_TASK_STATUSES } from "@/domain/constants";
@@ -30,6 +31,7 @@ export class ContainerManagementAgent {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private eventUnsubs: Array<() => void> = [];
   private config: AgentMonitorConfig = { ...DEFAULT_CONFIG };
+  private readonly congestionTrend = new CongestionTrendService();
 
   constructor(
     private readonly tos: TOSAdapter = new MockTOSAdapter(),
@@ -80,6 +82,9 @@ export class ContainerManagementAgent {
 
   /** Runs every detector, ranks/explains the findings, and persists+publishes new alerts. */
   async runCycle(): Promise<AgentAlert[]> {
+    // Best-effort — a snapshot failure shouldn't block alert detection.
+    await this.congestionTrend.recordSnapshot(this.tos).catch((err) => console.error("Congestion snapshot failed:", err));
+
     const ctx = { tos: this.tos, now: new Date(), config: this.config };
     const results = await Promise.all(DETECTORS.map((detector) => detector(ctx)));
     const candidates: CandidateAlert[] = results.flat();

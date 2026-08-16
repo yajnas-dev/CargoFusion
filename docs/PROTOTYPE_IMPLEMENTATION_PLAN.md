@@ -302,7 +302,23 @@ Follow-up pass closing the remaining P1 items:
 - **Analytics/KPI Dashboard** (`src/analytics/AnalyticsService.ts`, `/analytics`) — throughput, avg retrieval/queue time, task-status and request-outcome breakdowns, equipment/worker utilization, alert volume by type, incident resolution time by type. Every metric traces to a real column; deliberately does not report a "replanning frequency" metric since the pipeline's internal retry attempts aren't persisted anywhere.
 - **Global Notification Surface** (`src/app/GlobalAlertBar.tsx`) — mounted in the root layout, shows on every page except `/login`; scoped to URGENT open agent alerts and open incidents only, so it doesn't duplicate the page-local badges everything else already has.
 
-Still out of scope: the Operations Assistant NL agent, batch/multi-container requests, SLA/deadline awareness, worker-app queue/history, training scenario library, congestion trend snapshot (Phase 3), and the remaining `Alerts`/`Settings` nav stubs.
+Still out of scope: batch/multi-container requests, and the remaining `Alerts`/`Settings` nav stubs.
+
+### Port Operations Roadmap — Phase 3 (remaining P1/P2 items)
+
+- **Operations Assistant** (`src/agents/OperationsAssistant.ts`, `src/agents/opsSnapshot.ts`) — free-text Q&A grounded in a small live snapshot, same trust boundary as `PlanExplainer`/`AlertRanker`; deferred from Phase 2 into this pass. Dashboard's "Ask Operations" panel.
+- **SLA/Deadline Awareness** — `Task.dueBy` (optional, set at request time via the dashboard's retrieval-request form) + a new `slaBreach` detector, same shape as `agingTask` but keyed to an explicit deadline; suggests bumping priority to URGENT when that's a real fix, escalates when it isn't.
+- **Worker App Queue/History** — `GET /api/workers/[id]/history`, a "Recent" list on `/worker`. No real multi-task *queue* exists under the current one-worker-per-dispatch model, so history was the meaningful addition.
+- **Training/Validation Scenario Library** (`src/simulation/scenarios.ts`) — six named `DemoControls` compositions, plus the one real gap it exposed: `DemoControls.setWorkerStatus()` didn't exist yet.
+- **Congestion Trend Snapshot** (`src/analytics/CongestionTrendService.ts`) — new `CongestionSnapshot` model, recorded once per Container Management Agent cycle; a linear-extrapolation projection, explicitly not a forecast model.
+
+Still out of scope: batch/multi-container requests, and the remaining `Alerts`/`Settings` nav stubs.
+
+### A second self-inflicted test-pollution lesson (see the first, above)
+
+While building this phase, `CongestionTrendService.test.ts` cleaned up by `recordedAt >= testStartedAt`, but two of its own test cases deliberately *backdate* rows (e.g. "10 minutes ago" relative to the individual test's own run time) to exercise the trend math — which can predate `testStartedAt` and slip past that filter. Fixed by tracking exact lane ids touched per test and deleting by id instead of by time window. Generalizable lesson: a cleanup filter keyed to "when the suite started" doesn't cover data a test deliberately assigns a timestamp in the past.
+
+Separately, mid-phase, a full `npm test` run produced 24 failures in `WorkerTaskService.test.ts` that vanished when the file was run alone — `vitest`'s default file parallelism racing multiple files against the same `findFirst()`-selected container row (already documented above as a known characteristic of this suite, not fixed here). Confirmed via direct `dev.db` inspection before treating it as a regression.
 
 ### Known pre-existing issue found during this pass
 

@@ -5,12 +5,15 @@ export interface AgentMonitorConfig {
   agingTaskThresholdMs: number;
   congestionHotspotThreshold: number;
   congestionSustainedCycles: number;
+  /** How far ahead of a task's dueBy the slaBreach detector starts flagging it as at-risk. */
+  slaWarningThresholdMs: number;
 }
 
 export const DEFAULT_CONFIG: AgentMonitorConfig = {
   agingTaskThresholdMs: 5 * 60_000,
   congestionHotspotThreshold: 2.5,
   congestionSustainedCycles: 3,
+  slaWarningThresholdMs: 10 * 60_000,
 };
 
 export interface DetectorContext {

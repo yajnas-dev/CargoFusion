@@ -14,6 +14,7 @@ export interface SubmitRequestInput {
   priority: Priority;
   requiredEquipmentType?: EquipmentType;
   naturalLanguageRequest?: string;
+  dueBy?: Date;
 }
 
 export interface SubmitRequestResult {
@@ -72,6 +73,7 @@ export class SupervisorApprovalService {
         naturalLanguageRequest: input.naturalLanguageRequest,
         status: planResult.status === "READY" ? "PLANNED" : "REQUESTED",
         assignedEquipmentId: planResult.selectedEquipment?.equipment.id,
+        dueBy: input.dueBy,
       },
     });
 

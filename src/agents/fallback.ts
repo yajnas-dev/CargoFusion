@@ -1,5 +1,6 @@
 import type { InterpretedRequest } from "@/agents/RequestInterpreter";
 import type { RetrievalPlanResult } from "@/pipeline/RetrievalPlanningPipeline";
+import type { OpsSnapshot } from "@/agents/opsSnapshot";
 
 /**
  * Deterministic stand-ins used when Gemini is unavailable (no API key,
@@ -43,4 +44,26 @@ export function fallbackExplain(result: RetrievalPlanResult): string {
     default:
       return "Unable to generate a recommendation.";
   }
+}
+
+/**
+ * Deterministic stand-in for OperationsAssistant.answer() — can't parse an
+ * arbitrary question without an LLM, so this ignores the question and
+ * reports the same snapshot data as a plain summary instead of pretending
+ * to answer it. Still grounded in real numbers, just not tailored to what
+ * was actually asked.
+ */
+export function fallbackOpsSummary(snapshot: OpsSnapshot): string {
+  const top = snapshot.topOpenAlerts
+    .slice(0, 3)
+    .map((a) => `${a.type.replace(/_/g, " ").toLowerCase()} (${a.severity})`)
+    .join(", ");
+  return (
+    `AI assistant is unavailable right now, so here's the current state instead: ` +
+    `${snapshot.activeTaskCount} active task(s), ${snapshot.pendingApprovalCount} pending approval, ` +
+    `${snapshot.blockedLaneCount} blocked lane(s), ${snapshot.openIncidentCount} open incident(s), ` +
+    `${snapshot.equipmentAvailable}/${snapshot.equipmentTotal} equipment available, ` +
+    `${snapshot.workersAvailable}/${snapshot.workersTotal} workers available.` +
+    (top ? ` Top open alerts: ${top}.` : " No open alerts.")
+  );
 }

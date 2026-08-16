@@ -185,6 +185,10 @@ model Task {
   priority               Priority   @default(MEDIUM)
   requestedBy            String
   naturalLanguageRequest String?
+  // Optional deadline (Port Operations Roadmap Phase 3: SLA/Deadline
+  // Awareness) — set at request time; slaBreach detector flags tasks
+  // still short of DISPATCHED as this approaches or passes.
+  dueBy                  DateTime?
 
   assignedEquipmentId String?
   assignedEquipment   Equipment? @relation(fields: [assignedEquipmentId], references: [id])
@@ -270,6 +274,7 @@ enum AgentAlertType {
   EQUIPMENT_TASK_MISMATCH
   URGENT_CONTAINER_UNACTIONED
   UNCLAIMED_PRIORITY_CONTAINER
+  SLA_AT_RISK
 }
 
 enum AgentAlertStatus {
@@ -361,6 +366,21 @@ model TosWriteBackLog {
   writtenAt        DateTime @default(now())
 
   @@index([recommendationId])
+}
+
+// Periodic point-in-time congestion readings per lane (Port Operations
+// Roadmap Phase 3: Congestion Trend Snapshot) — didn't exist before this;
+// YardLane.congestionWeight only ever held the current value, nothing
+// historical to extrapolate a trend from. Recorded once per Container
+// Management Agent cycle (src/agent-monitor/ContainerManagementAgent.ts),
+// not tied to the demo/simulation background drift.
+model CongestionSnapshot {
+  id               String   @id @default(cuid())
+  laneId           String
+  congestionWeight Float
+  recordedAt       DateTime @default(now())
+
+  @@index([laneId, recordedAt])
 }
 
 enum SensorEventType {

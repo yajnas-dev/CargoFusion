@@ -80,3 +80,49 @@
   color: var(--ops-red);
   font-size: 0.88rem;
 }
+
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.historyHeading {
+  font-size: 0.8rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  font-size: 0.82rem;
+}
+
+.historyContainer {
+  font-weight: 600;
+}
+
+.historyStatus {
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+}
+
+.historyTime {
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}

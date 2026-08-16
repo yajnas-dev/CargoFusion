@@ -45,8 +45,11 @@ describe("Agent alert scenario: blocked-lane condition -> raised -> applied -> a
   const mutatedLaneIds: string[] = [];
   const createdTaskIds: string[] = [];
   const createdAlertIds: string[] = [];
+  const testStartedAt = new Date();
 
   afterEach(async () => {
+    // runCycle() below also writes a CongestionSnapshot row per lane.
+    await prisma.congestionSnapshot.deleteMany({ where: { recordedAt: { gte: testStartedAt } } });
     if (createdAlertIds.length > 0) {
       await prisma.auditEvent.deleteMany({ where: { agentAlertId: { in: createdAlertIds } } });
       await prisma.agentAlert.deleteMany({ where: { id: { in: createdAlertIds } } });

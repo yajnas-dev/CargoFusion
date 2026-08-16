@@ -41,6 +41,10 @@ function templateFor(candidate: CandidateAlert): string {
       return `Task ${candidate.taskId} is URGENT priority but has not progressed past REQUESTED.`;
     case "UNCLAIMED_PRIORITY_CONTAINER":
       return `Container ${candidate.subject.containerId} (${candidate.subject.priority} priority, block ${candidate.subject.block}) is eligible for retrieval but nobody has requested it yet.`;
+    case "SLA_AT_RISK":
+      return candidate.subject.breached
+        ? `Task ${candidate.taskId} missed its deadline (${candidate.subject.dueBy}) and still hasn't been dispatched.`
+        : `Task ${candidate.taskId} is due by ${candidate.subject.dueBy} (~${candidate.subject.minutesRemaining} min remaining) and hasn't been dispatched yet.`;
     default:
       return "A yard condition needs attention.";
   }

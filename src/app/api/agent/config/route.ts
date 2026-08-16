@@ -19,7 +19,12 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const partial: Record<string, number> = {};
-    for (const key of ["agingTaskThresholdMs", "congestionHotspotThreshold", "congestionSustainedCycles"] as const) {
+    for (const key of [
+      "agingTaskThresholdMs",
+      "congestionHotspotThreshold",
+      "congestionSustainedCycles",
+      "slaWarningThresholdMs",
+    ] as const) {
       if (typeof body[key] === "number" && Number.isFinite(body[key]) && body[key] > 0) {
         partial[key] = body[key];
       }

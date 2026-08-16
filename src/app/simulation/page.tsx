@@ -7,6 +7,17 @@ import { useLiveEvents } from "../useLiveEvents";
 import { TOPICS } from "@/events/topics";
 import styles from "./page.module.css";
 
+interface ScenarioDefinition {
+  id: string;
+  label: string;
+  description: string;
+}
+
+interface ScenarioResult {
+  scenarioId: string;
+  summary: string;
+}
+
 interface YardSummary {
   nodes: MapNode[];
   lanes: MapLane[];
@@ -35,6 +46,8 @@ export default function SimulationPage() {
   const [error, setError] = useState<string | null>(null);
   const [clock, setClock] = useState("");
   const [pending, setPending] = useState<string | null>(null);
+  const [scenarios, setScenarios] = useState<ScenarioDefinition[]>([]);
+  const [lastScenarioResult, setLastScenarioResult] = useState<ScenarioResult | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -47,6 +60,12 @@ export default function SimulationPage() {
     } catch (err) {
       setError((err as Error).message);
     }
+  }, []);
+
+  useEffect(() => {
+    api<{ scenarios: ScenarioDefinition[] }>("/api/simulation/scenarios")
+      .then((data) => setScenarios(data.scenarios))
+      .catch(() => setScenarios([]));
   }, []);
 
   useEffect(() => {
@@ -86,6 +105,20 @@ export default function SimulationPage() {
     setPending(key);
     try {
       await api(path, { method: "POST", body: JSON.stringify(body) });
+      await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setPending(null);
+    }
+  }
+
+  async function runScenario(id: string) {
+    setError(null);
+    setPending(`scenario:${id}`);
+    try {
+      const data = await api<{ result: ScenarioResult }>(`/api/simulation/scenarios/${id}/run`, { method: "POST" });
+      setLastScenarioResult(data.result);
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -199,6 +232,28 @@ export default function SimulationPage() {
             <button className={styles.actionButton} disabled={pending === "unblock-all"} onClick={() => runAction("unblock-all", "/api/simulation/unblock-lanes")}>
               Unblock All Lanes
             </button>
+          </section>
+
+          <section className={styles.section}>
+            <h2>Training Scenarios</h2>
+            <p className={styles.sectionHint}>
+              Named, repeatable disruptions for onboarding a new supervisor or regression-testing the Container
+              Management Agent — each composes the same actions below, not a separate simulation.
+            </p>
+            <div className={styles.scenarioList}>
+              {scenarios.map((s) => (
+                <button
+                  key={s.id}
+                  className={styles.scenarioButton}
+                  disabled={pending === `scenario:${s.id}`}
+                  title={s.description}
+                  onClick={() => runScenario(s.id)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            {lastScenarioResult && <p className={styles.scenarioResult}>{lastScenarioResult.summary}</p>}
           </section>
 
           <section className={styles.section}>

@@ -57,7 +57,8 @@ Defined in `prisma/schema.prisma`, backed by SQLite (`dev.db`, gitignored — re
 | `Equipment` | Cranes and yard trucks: type, status (AVAILABLE/BUSY/OFFLINE), capacity, current yard-node position. |
 | `YardBlock` / `YardNode` / `YardLane` | The yard graph: named blocks, intersections with real x/y coordinates, and the lanes connecting them (distance, blocked flag, congestion weight). |
 | `Worker` | Simulated yard workers with a status and (at most) one active task. |
-| `Task` | An ACSA-owned retrieval task, moving through `REQUESTED → PLANNED → APPROVED → DISPATCHED → IN_PROGRESS → RETRIEVED → COMPLETED` (or `REJECTED`). |
+| `Task` | An ACSA-owned retrieval task, moving through `REQUESTED → PLANNED → APPROVED → DISPATCHED → IN_PROGRESS → RETRIEVED → COMPLETED` (or `REJECTED`). Optional `dueBy` deadline, checked by the `slaBreach` detector. |
+| `CongestionSnapshot` | Periodic point-in-time congestion readings per lane, recorded once per Container Management Agent cycle — the time series `YardLane.congestionWeight` alone doesn't provide. |
 | `Recommendation` | The system's proposed plan for a task — route, equipment, confidence score/level, explanation, twin-validation result. |
 | `AuditEvent` | Immutable log of every meaningful action (submitted, recommended, approved, rejected, overridden, dispatched, confirmed, status change, agent alert raised/applied/dismissed). Readable via `GET /api/audit` and the `/audit` page. |
 | `AgentAlert` | Raised by the Container Management Agent (`src/agent-monitor/`) — type, severity, suggested action, rank/explanation, resolution. Never self-executes; `apply()` calls the same deterministic service a human would use manually. |
@@ -133,7 +134,8 @@ The composition point that wires search → equipment allocation → routing →
 
 - **`RequestInterpreter`** — turns a sentence like *"Get MSKU1234567 out as quickly as possible"* into `{ containerQuery: "MSKU1234567", priority: "URGENT" }` using Gemini's structured JSON output. It decides *what* to look up, never computes anything itself.
 - **`PlanExplainer`** — takes an already-fully-computed plan (container, equipment + score, route, twin result, confidence) and writes 2–4 plain-language sentences about it. Every number in its prompt came from the deterministic layers above; it invents nothing.
-- **`RetrievalRequestService`** (`src/pipeline/RetrievalRequestService.ts`) — orchestrates interpret → pipeline → explain, short-circuiting to a clarifying question if the request doesn't resolve to a usable container query. (Reconciled from an earlier, disconnected `RetrievalAgent` scaffold into this single real entry point.)
+- **`RetrievalRequestService`** (`src/pipeline/RetrievalRequestService.ts`) — orchestrates interpret → pipeline → explain, short-circuiting to a clarifying question if the request doesn't resolve to a usable container query. (Reconciled from an earlier, disconnected `RetrievalAgent` scaffold into this single real entry point.) Also accepts an optional `dueBy` deadline, passed through to `SupervisorApprovalService.submitRequest` and persisted on the `Task`.
+- **`OperationsAssistant`** (`src/agents/OperationsAssistant.ts`) — "what's happening in the yard right now?" / "what should we prioritize?" — answers a supervisor's free-text question, grounded in a small snapshot (`src/agents/opsSnapshot.ts`: task/alert/incident/equipment/worker counts, top 5 ranked open alerts) built entirely from plain aggregate queries. Same trust boundary as `PlanExplainer`: narrates only what's in the snapshot, told explicitly not to invent numbers, and has no mutation capability — it's a query, not an action. `POST /api/ops-assistant/ask`, the dashboard's "Ask Operations" panel. Falls back to `fallbackOpsSummary()` (a templated summary of the same snapshot, since a deterministic stand-in can't parse an arbitrary question) when Gemini is unavailable or throws.
 - **`fallback.ts`** — if Gemini is unavailable (no API key, network error, or — a real occurrence during this project's build — a free-tier daily quota limit), the API layer falls back to a deterministic interpreter (regex-extracts an ISO-6346-shaped container ID from the sentence, keyword-matches urgency language) and a templated explanation, so the app never simply fails a request over an LLM hiccup.
 
 ## Container Management Agent (`src/agent-monitor/`)
@@ -144,6 +146,7 @@ A second, independent agent layer — not part of the per-request pipeline above
 - **Ranking** — `AlertRanker` (Gemini) scores/orders/explains the *fixed* candidate list the detectors already produced; it cannot invent a new issue or a different action, and out-of-range model responses are dropped. `AlertRankerFallback.fallbackRank` (severity-weighted, templated explanation) is used when no model is available or the model throws — same degrade-gracefully pattern as the request pipeline's agents.
 - **`AgentAlertService`** — the one place a suggested action is ever dispatched (`apply()`), each type mapped to one real deterministic service call (`DemoControls`, `SupervisorApprovalService`, `WorkerTaskService`); `ESCALATE_TO_SUPERVISOR` has no automated action by design. Fails closed: if the underlying call throws, the alert stays open and the error propagates. Every raise/apply/dismiss writes an `AuditEvent`.
 - **Incident Impact & Reroute Assist** — `blockedLaneImpact` doesn't just flag a blocked lane, it recomputes the route between the impacted task's original origin/destination (A* excludes blocked lanes outright, so this naturally routes around the blockage) and estimates the delay versus the physical distance of the originally-recorded path. The alert's `subjectJson` carries `alternateRoute`/`delaySeconds`; the `/agent` page renders it inline on the alert card. Pure deterministic TypeScript — the LLM ranking layer never touches these numbers.
+- **`slaBreach`** (`src/agent-monitor/detectors/slaBreach.ts`) — a task with an optional `Task.dueBy` deadline (set at request time) that's within `slaWarningThresholdMs` of breaching it, or already has, while still short of `DISPATCHED`. Severity is forced to `URGENT` once actually breached. Suggests `REPRIORITIZE_TASK` (bump to URGENT) when the task isn't already URGENT — a real actionable fix — or `ESCALATE_TO_SUPERVISOR` once there's nothing left to automate.
 
 ## Incidents (`src/incidents/IncidentService.ts`, `/incidents`)
 
@@ -157,6 +160,10 @@ Read-only "what would this affect" checks, reusing the exact same logic the real
 - **Equipment offline preview** — a plain query for whether any active task currently claims the equipment.
 
 Surfaced inline in the Incidents page's report form — check the impact before reporting, not after.
+
+## Congestion Trend Snapshot (`src/analytics/CongestionTrendService.ts`)
+
+`YardLane.congestionWeight` only ever held the current value — no history to compute a trend from. `recordSnapshot()` writes one `CongestionSnapshot` row per lane, called once per Container Management Agent cycle (`ContainerManagementAgent.runCycle()`, best-effort — a snapshot failure never blocks alert detection). `getTrend()`/`getTopTrends()` do a simple linear extrapolation from the oldest to newest reading in a lookback window (clamped to the real `[1.0, 3.0]` congestion range) — explicitly labeled a straight-line projection, not a forecast model, both in the code and in the `/analytics` page's caveat text. `GET /api/analytics/congestion-trend`.
 
 ## Confidence / Policy Gate (`src/policy/ConfidenceGate.ts`)
 
@@ -191,8 +198,9 @@ Every transition is guarded (wrong status, wrong worker) and throws rather than 
 
 ## Live Simulation & Demo Controls (`src/simulation/`)
 
-- **`DemoControls`** — one-shot operator actions: block/unblock a lane, spike or gently drift congestion, reset it, move a piece of equipment (to a specific node or a random neighbor), set or randomly flap equipment availability, trigger a simulated RFID checkpoint event.
+- **`DemoControls`** — one-shot operator actions: block/unblock a lane, spike or gently drift congestion, reset it, move a piece of equipment (to a specific node or a random neighbor), set or randomly flap equipment availability, set a worker's status, trigger a simulated RFID checkpoint event.
 - **`SimulationEngine`** — an interval-driven background loop that randomly performs one of the above every few seconds, for continuous ambient yard activity. **Deliberately opt-in**: it never starts itself — only an explicit "Start Background Simulation" click starts it — specifically so it can never interfere with the test suite or an idle dev session.
+- **Training/Validation Scenarios** (`src/simulation/scenarios.ts`, `ScenarioRunner`) — six named, repeatable compositions of the primitives above (lane blockage, equipment failure, congestion spike, multiple urgent containers, worker shortage, multiple simultaneous disruptions) for onboarding a new supervisor or regression-testing the Container Management Agent — the same way a real TOS ships a training/sandbox mode, not demo theater. `GET /api/simulation/scenarios`, `POST /api/simulation/scenarios/[id]/run`, buttons on `/simulation`.
 
 ---
 
@@ -213,6 +221,10 @@ Thin route handlers with no business logic beyond wiring — every route just ca
 | `GET/POST /api/incidents`, `POST /api/incidents/[id]/resolve` | Incident report/resolve lifecycle. |
 | `GET /api/preview/lane-block`, `GET /api/preview/equipment-offline` | Read-only what-if impact checks — never mutate state. |
 | `GET /api/analytics` | KPI summary (`?windowHours=`) — throughput, retrieval/queue time, task/request-outcome breakdowns, equipment/worker utilization, alert volume, incident resolution time. Every number traces to a real column; nothing estimated the schema doesn't track (no "replanning frequency" — the pipeline's internal retries aren't persisted anywhere). |
+| `GET /api/analytics/congestion-trend` | Per-lane congestion history + a linear-extrapolation projection. |
+| `POST /api/ops-assistant/ask` | Operations Assistant free-text Q&A, grounded in a live snapshot. |
+| `GET /api/simulation/scenarios`, `POST /api/simulation/scenarios/[id]/run` | Training/validation scenario library. |
+| `GET /api/workers/[id]/history` | A worker's recent completed/retrieved tasks. |
 | `POST /api/simulation/{start,stop,status,congestion,block-lane,unblock-lanes,move-equipment,rfid-event,equipment-status}` | The live demo controls. |
 
 ## Dashboard & Worker App (`src/app/page.tsx`, `src/app/worker/page.tsx`)
@@ -234,7 +246,8 @@ A dark, always-on "ops console" theme (not adaptive to system light/dark — a d
 - **Incidents** (`/incidents`) — open/resolved incident feed with a report form (type, subject, cause) that shows a live what-if impact preview before submitting, and a Resolve action.
 - **Analytics** (`/analytics`) — KPI dashboard: throughput, retrieval/queue time stat tiles, task-status and request-outcome breakdown bars, equipment/worker utilization meters, alert volume by type, incident resolution time by type. Selectable time window (6h/24h/7d).
 - **Global Notification Surface** (`src/app/GlobalAlertBar.tsx`, mounted in the root layout) — a slim, dismissible banner on every page (except `/login`) for URGENT open agent alerts and open incidents specifically; deliberately narrow so it doesn't just duplicate the page-local badges everything else already has.
-- **Worker App** (`/worker`) — pick a worker, see their one active task (if any), Start → Confirm Retrieval.
+- **Ask Operations** — a compact Q&A panel on the dashboard (sample questions, last 5 exchanges) backed by the Operations Assistant; shows a "(fallback summary — AI unavailable)" tag when the deterministic fallback answered instead of Gemini.
+- **Worker App** (`/worker`) — pick a worker, see their one active task (if any), Start → Confirm Retrieval, plus a "Recent" list of their last 10 completed/retrieved tasks.
 
 Both pages poll the relevant API routes every 5–8 seconds for live updates, with a real ticking clock and a real alert count (blocked lanes + digital-twin conflicts) in the header. Key interactive controls (the retrieval request input, the override equipment select and reason field, the worker picker) carry explicit `aria-label`s rather than relying on placeholder text alone, since placeholder-only labeling disappears for screen readers once the field has a value.
 

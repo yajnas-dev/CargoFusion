@@ -36,6 +36,7 @@ interface AgentConfig {
   agingTaskThresholdMs: number;
   congestionHotspotThreshold: number;
   congestionSustainedCycles: number;
+  slaWarningThresholdMs: number;
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -281,6 +282,19 @@ export default function AgentPage() {
                   onBlur={(e) => {
                     const value = Number(e.target.value);
                     if (value > 0) saveConfig({ congestionSustainedCycles: value });
+                  }}
+                />
+              </label>
+              <label className={styles.fieldLabel}>
+                SLA warning window (minutes)
+                <input
+                  type="number"
+                  min={1}
+                  className={styles.numberInput}
+                  defaultValue={Math.round(config.slaWarningThresholdMs / 60000)}
+                  onBlur={(e) => {
+                    const minutes = Number(e.target.value);
+                    if (minutes > 0) saveConfig({ slaWarningThresholdMs: minutes * 60000 });
                   }}
                 />
               </label>

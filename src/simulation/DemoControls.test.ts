@@ -188,6 +188,20 @@ describe("DemoControls", () => {
     await prisma.equipment.update({ where: { id: flapped!.id }, data: { status: originalStatus } });
   });
 
+  it("setWorkerStatus changes status and rejects a currently-BUSY worker", async () => {
+    const available = await prisma.worker.findFirstOrThrow({ where: { status: "AVAILABLE" } });
+    const controls = new DemoControls();
+
+    const updated = await controls.setWorkerStatus(available.id, "OFF_SHIFT");
+    expect(updated.status).toBe("OFF_SHIFT");
+    await prisma.worker.update({ where: { id: available.id }, data: { status: "AVAILABLE" } });
+
+    const busy = await prisma.worker.findFirst({ where: { status: "BUSY" } });
+    if (busy) {
+      await expect(controls.setWorkerStatus(busy.id, "OFF_SHIFT")).rejects.toThrow(/BUSY/);
+    }
+  });
+
   it("triggerRfidEvent with an explicit container creates a matching SensorEvent", async () => {
     const container = await prisma.container.findFirstOrThrow();
     const controls = new DemoControls();

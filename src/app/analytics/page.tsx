@@ -23,6 +23,12 @@ interface IncidentDurationSummary {
   avgResolutionSeconds: number | null;
 }
 
+interface CongestionTrend {
+  laneId: string;
+  currentWeight: number;
+  projection: { inMinutes: number; projectedWeight: number } | null;
+}
+
 interface AnalyticsSummary {
   windowHours: number;
   throughput: { completedInWindow: number; windowHours: number; perHour: number };
@@ -125,13 +131,18 @@ function UtilizationMeter({ label, summary }: { label: string; summary: Utilizat
 
 export default function AnalyticsPage() {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [congestionTrends, setCongestionTrends] = useState<CongestionTrend[]>([]);
   const [windowHours, setWindowHours] = useState(24);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async (hours: number) => {
     try {
-      const data = await api<{ summary: AnalyticsSummary }>(`/api/analytics?windowHours=${hours}`);
-      setSummary(data.summary);
+      const [summaryData, trendData] = await Promise.all([
+        api<{ summary: AnalyticsSummary }>(`/api/analytics?windowHours=${hours}`),
+        api<{ trends: CongestionTrend[] }>("/api/analytics/congestion-trend"),
+      ]);
+      setSummary(summaryData.summary);
+      setCongestionTrends(trendData.trends);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -223,6 +234,49 @@ export default function AnalyticsPage() {
               <h2>Worker utilization</h2>
               <UtilizationMeter label="Workers" summary={summary.workerUtilization} />
             </div>
+          </div>
+
+          <div className={styles.panel}>
+            <h2>Congestion trend (top 10 lanes, last 30 min)</h2>
+            <p className={styles.trendCaveat}>
+              Linear extrapolation from the oldest to newest reading in the window — a straight-line projection, not a
+              forecast model. Snapshots are recorded once per Container Management Agent cycle, so this fills in once
+              the agent has been running for a few cycles.
+            </p>
+            {congestionTrends.length === 0 && (
+              <p className={styles.emptyState}>No snapshots yet — start the Container Management Agent to begin recording.</p>
+            )}
+            {congestionTrends.length > 0 && (
+              <table className={styles.trendTable}>
+                <thead>
+                  <tr>
+                    <th>Lane</th>
+                    <th>Current</th>
+                    <th>Projected (+15 min)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {congestionTrends.map((t) => {
+                    const delta = t.projection ? t.projection.projectedWeight - t.currentWeight : null;
+                    return (
+                      <tr key={t.laneId}>
+                        <td>{t.laneId}</td>
+                        <td>{t.currentWeight.toFixed(2)}x</td>
+                        <td>
+                          {t.projection ? (
+                            <span className={delta !== null && delta > 0.05 ? styles.trendUp : delta !== null && delta < -0.05 ? styles.trendDown : undefined}>
+                              {t.projection.projectedWeight.toFixed(2)}x
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div className={styles.grid2}>

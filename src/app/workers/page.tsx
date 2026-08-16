@@ -44,7 +44,7 @@ export default function WorkersPage() {
     };
   }, [refresh]);
 
-  useLiveEvents({ [TOPICS.TASK_CHANGED]: () => refresh() });
+  useLiveEvents({ [TOPICS.TASK_CHANGED]: () => refresh(), [TOPICS.WORKER_CHANGED]: () => refresh() });
 
   const availableCount = workers.filter((w) => w.status === "AVAILABLE").length;
 

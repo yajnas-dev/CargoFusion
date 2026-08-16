@@ -280,3 +280,42 @@
   font-size: 0.72rem;
   color: var(--ops-muted);
 }
+
+/* Congestion trend */
+
+.trendCaveat {
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.trendTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.trendTable th,
+.trendTable td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--ops-border);
+}
+
+.trendTable th {
+  color: var(--ops-muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.trendUp {
+  color: var(--ops-amber);
+  font-weight: 600;
+}
+
+.trendDown {
+  color: var(--ops-green);
+  font-weight: 600;
+}

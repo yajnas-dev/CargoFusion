@@ -5,6 +5,7 @@ import { detectCongestionHotspots } from "@/agent-monitor/detectors/congestionHo
 import { detectEquipmentTaskMismatch } from "@/agent-monitor/detectors/equipmentTaskMismatch";
 import { detectUrgentUnactioned } from "@/agent-monitor/detectors/urgentContainerUnactioned";
 import { detectUnclaimedPriorityContainers } from "@/agent-monitor/detectors/unclaimedPriorityContainer";
+import { detectSlaBreaches } from "@/agent-monitor/detectors/slaBreach";
 import type { DetectorFn } from "@/agent-monitor/types";
 
 export const DETECTORS: DetectorFn[] = [
@@ -15,6 +16,7 @@ export const DETECTORS: DetectorFn[] = [
   detectEquipmentTaskMismatch,
   detectUrgentUnactioned,
   detectUnclaimedPriorityContainers,
+  detectSlaBreaches,
 ];
 
 export {
@@ -25,5 +27,6 @@ export {
   detectEquipmentTaskMismatch,
   detectUrgentUnactioned,
   detectUnclaimedPriorityContainers,
+  detectSlaBreaches,
 };
 export { resetCongestionHotspotState } from "@/agent-monitor/detectors/congestionHotspot";

@@ -32,7 +32,7 @@ export class RetrievalRequestService {
     this.approval = new SupervisorApprovalService(tos);
   }
 
-  async submit(rawRequest: string, requestedBy: string): Promise<RetrievalRequestResponse> {
+  async submit(rawRequest: string, requestedBy: string, dueBy?: Date): Promise<RetrievalRequestResponse> {
     const interpreted = this.model
       ? await new RequestInterpreter(this.model).interpret(rawRequest).catch(() => fallbackInterpret(rawRequest))
       : fallbackInterpret(rawRequest);
@@ -50,6 +50,7 @@ export class RetrievalRequestService {
       priority: interpreted.priority,
       requiredEquipmentType: interpreted.requiredEquipmentType,
       naturalLanguageRequest: rawRequest,
+      dueBy,
     });
 
     const explanation = this.model

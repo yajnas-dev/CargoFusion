@@ -15,6 +15,7 @@ interface QueueTask {
   status: TaskStatus;
   priority: Priority;
   createdAt: string;
+  dueBy: string | null;
   naturalLanguageRequest: string | null;
   container: { id: string; block: string; row: number; bay: number; tier: number };
   assignedEquipment: { id: string; type: string } | null;
@@ -47,6 +48,10 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 function ageMinutes(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+}
+
+function minutesUntil(iso: string): number {
+  return Math.round((new Date(iso).getTime() - Date.now()) / 60000);
 }
 
 export default function ApprovalQueuePage() {
@@ -186,9 +191,11 @@ export default function ApprovalQueuePage() {
           const age = ageMinutes(task.createdAt);
           const isAging = agingThresholdMin !== null && age >= agingThresholdMin;
           const rec = task.recommendations[0];
+          const dueByMinutes = task.dueBy ? minutesUntil(task.dueBy) : null;
+          const dueBreached = dueByMinutes !== null && dueByMinutes <= 0;
 
           return (
-            <div key={task.id} className={`${styles.card} ${isAging ? styles.cardAging : ""}`}>
+            <div key={task.id} className={`${styles.card} ${isAging || dueBreached ? styles.cardAging : ""}`}>
               <div className={styles.cardHeader}>
                 <div className={styles.cardHeaderLeft}>
                   <span className={styles.containerId}>{task.container.id}</span>
@@ -197,6 +204,11 @@ export default function ApprovalQueuePage() {
                   </span>
                   <span className={styles.statusTag}>{task.status}</span>
                   {isAging && <span className={styles.agingTag}>Aging · {age}m</span>}
+                  {dueByMinutes !== null && (
+                    <span className={styles.agingTag}>
+                      {dueBreached ? `Overdue · ${Math.abs(dueByMinutes)}m` : `Due in ${dueByMinutes}m`}
+                    </span>
+                  )}
                 </div>
                 <span className={styles.ageText}>{age}m ago</span>
               </div>

@@ -312,6 +312,61 @@
   letter-spacing: 0.04em;
 }
 
+/* Ask Operations */
+
+.opsSamples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.opsSampleButton {
+  padding: 6px 12px;
+  border: 1px solid var(--ops-border);
+  border-radius: 999px;
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.opsSampleButton:hover {
+  color: var(--ops-text);
+  border-color: var(--ops-accent);
+}
+
+.opsExchangeList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.opsExchange {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--ops-panel-bg-alt);
+}
+
+.opsQuestion {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.opsAnswer {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ops-text);
+}
+
+.opsFallbackTag {
+  color: var(--ops-muted);
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
 /* Stat row */
 
 .statRow {
@@ -454,6 +509,16 @@
   background: var(--ops-map-bg);
   color: var(--ops-text);
   font-size: 0.88rem;
+}
+
+.dueByInput {
+  flex: 0 0 auto;
+  padding: 9px 11px;
+  border: 1px solid var(--ops-border);
+  border-radius: 7px;
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-size: 0.82rem;
 }
 
 .primaryButton,

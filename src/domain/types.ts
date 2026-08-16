@@ -18,6 +18,7 @@ export type {
   User,
   AgentAlert,
   Incident,
+  CongestionSnapshot,
   TosWriteBackLog,
   ContainerStatus,
   ContainerType,

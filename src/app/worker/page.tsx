@@ -21,6 +21,13 @@ interface ActiveTask {
   assignedEquipment?: { id: string; type: string } | null;
 }
 
+interface HistoryTask {
+  id: string;
+  status: "RETRIEVED" | "COMPLETED";
+  updatedAt: string;
+  container: { id: string; block: string };
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -34,6 +41,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 export default function WorkerApp() {
   const [session, setSession] = useState<SessionUser | null | undefined>(undefined);
   const [task, setTask] = useState<ActiveTask | null | undefined>(undefined);
+  const [history, setHistory] = useState<HistoryTask[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -50,16 +58,27 @@ export default function WorkerApp() {
     setTask(data.task);
   }, []);
 
+  const loadHistory = useCallback(async (id: string) => {
+    const data = await api<{ tasks: HistoryTask[] }>(`/api/workers/${id}/history`);
+    setHistory(data.tasks);
+  }, []);
+
   useEffect(() => {
     if (!workerId) return;
-    const timeout = setTimeout(() => loadActiveTask(workerId), 0);
+    const timeout = setTimeout(() => {
+      loadActiveTask(workerId);
+      loadHistory(workerId);
+    }, 0);
     // 15s fallback poll in case the SSE stream (below) is silently disconnected.
-    const interval = setInterval(() => loadActiveTask(workerId), 15000);
+    const interval = setInterval(() => {
+      loadActiveTask(workerId);
+      loadHistory(workerId);
+    }, 15000);
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
-  }, [workerId, loadActiveTask]);
+  }, [workerId, loadActiveTask, loadHistory]);
 
   // The TASK_CHANGED payload doesn't carry which worker a task belongs to,
   // so any task change just re-fetches this worker's own active task —
@@ -69,8 +88,11 @@ export default function WorkerApp() {
   const debouncedReload = useCallback(() => {
     if (!workerId) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => loadActiveTask(workerId), 300);
-  }, [workerId, loadActiveTask]);
+    debounceRef.current = setTimeout(() => {
+      loadActiveTask(workerId);
+      loadHistory(workerId);
+    }, 300);
+  }, [workerId, loadActiveTask, loadHistory]);
 
   useLiveEvents({ [TOPICS.TASK_CHANGED]: debouncedReload });
 
@@ -157,6 +179,23 @@ export default function WorkerApp() {
                   Confirm Retrieval
                 </button>
               )}
+            </div>
+          )}
+
+          {history.length > 0 && (
+            <div className={styles.historySection}>
+              <h2 className={styles.historyHeading}>Recent</h2>
+              <ul className={styles.historyList}>
+                {history.map((h) => (
+                  <li key={h.id} className={styles.historyItem}>
+                    <span className={styles.historyContainer}>
+                      {h.container.id} ({h.container.block})
+                    </span>
+                    <span className={styles.historyStatus}>{h.status}</span>
+                    <span className={styles.historyTime}>{new Date(h.updatedAt).toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </>

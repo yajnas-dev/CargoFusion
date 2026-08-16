@@ -9,6 +9,7 @@ export const TOPICS = {
   RECOMMENDATION_CREATED: "recommendation.created",
   YARD_LANE_CHANGED: "yard.lane.changed",
   YARD_EQUIPMENT_CHANGED: "yard.equipment.changed",
+  WORKER_CHANGED: "worker.changed",
   SENSOR_EVENT: "yard.sensor.event",
   AGENT_ALERT_RAISED: "agent.alert.raised",
   AGENT_ALERT_RESOLVED: "agent.alert.resolved",
