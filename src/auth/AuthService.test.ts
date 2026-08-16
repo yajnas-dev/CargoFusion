@@ -46,4 +46,27 @@ describe("AuthService", () => {
   it("rejects a wrong password", async () => {
     await expect(new AuthService().authenticate(TEST_EMAIL, "wrong-password")).rejects.toThrow(UnauthorizedError);
   });
+
+  it("changePassword requires the correct current password and lets the new one authenticate afterward", async () => {
+    const auth = new AuthService();
+    await auth.changePassword(createdUserId, TEST_PASSWORD, "a-new-password-1");
+
+    await expect(auth.authenticate(TEST_EMAIL, TEST_PASSWORD)).rejects.toThrow(UnauthorizedError);
+    const session = await auth.authenticate(TEST_EMAIL, "a-new-password-1");
+    expect(session.sub).toBe(createdUserId);
+  });
+
+  it("changePassword rejects an incorrect current password without changing anything", async () => {
+    const auth = new AuthService();
+    await expect(auth.changePassword(createdUserId, "wrong-current", "a-new-password-1")).rejects.toThrow(
+      UnauthorizedError,
+    );
+    const session = await auth.authenticate(TEST_EMAIL, TEST_PASSWORD);
+    expect(session.sub).toBe(createdUserId);
+  });
+
+  it("changePassword rejects a new password shorter than the minimum length", async () => {
+    const auth = new AuthService();
+    await expect(auth.changePassword(createdUserId, TEST_PASSWORD, "short")).rejects.toThrow(/at least/);
+  });
 });

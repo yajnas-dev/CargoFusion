@@ -316,7 +316,14 @@ Still out of scope: batch/multi-container requests, and the remaining `Alerts`/`
 
 `RetrievalRequestService.submitBatch()` loops the existing single-request `submit()` per line rather than extending `RequestInterpreter`/`InterpretedRequest` to parse multiple containers out of one sentence — deliberately, to avoid touching the well-tested single-container interpretation core for a capability that's really about handling request *volume* (a pasted manifest, several containers for one outbound truck), not about parsing "and" inside a sentence. `POST /api/retrieval-requests/batch`, a "Batch (multiple)" toggle on the dashboard.
 
-Still out of scope: the remaining `Alerts`/`Settings` nav stubs, and Phase 4 (historical replay — deferred pending evidence operators want to scrub state rather than see aggregate KPIs).
+### Port Operations Roadmap — Phase 4 (closed out on explicit request)
+
+Originally deferred pending evidence operators wanted them; built anyway on direct instruction rather than left speculative:
+
+- **Settings** (`/settings`) — read-only profile + a real change-password flow (`AuthService.changePassword`, re-proves the current password; `POST /api/auth/change-password`). Agent thresholds intentionally stay on `/agent` next to the monitor they configure, rather than being duplicated here.
+- **Shift Timeline** (`/history`, "historical replay") — scoped honestly to what the data actually supports: a scrubbable/playable replay of the real `AuditEvent` sequence over a selected window, not a fabricated reconstruction of yard/equipment state at a point in time (no periodic full-state snapshot exists for that — only `CongestionSnapshot`, and only for lanes). `GET /api/audit` gained `since`/`until`/`order=asc`.
+
+Still out of scope: the `Alerts` nav stub (a unified cross-page alert list beyond the existing Global Notification Surface + `/agent`) — judged redundant with what already exists, not a real gap.
 
 ### A second self-inflicted test-pollution lesson (see the first, above)
 

@@ -169,6 +169,10 @@ Surfaced inline in the Incidents page's report form — check the impact before 
 
 One request per line, each going through the exact same interpret → submit → explain path as a single request (`submit()`, looped) — not a separate bulk pipeline, and the single-container `RequestInterpreter`/`InterpretedRequest` shape was deliberately left untouched rather than extended to parse "and" inside one sentence, since a real shift gets bursts of requests (a manifest pasted in) more often than compound sentences. Each line is isolated — one failing (no resolvable container, an unexpected error) doesn't stop the rest. `POST /api/retrieval-requests/batch` (capped at 20/request), the dashboard's "Batch (multiple)" toggle on the Retrieval Request panel, with a per-line result summary and a link to the Approval Queue.
 
+## Shift Timeline (`/history`)
+
+A real replay of what happened, built entirely from `AuditEvent` (every mutating service already writes one) — not a reconstruction of yard/equipment state at a point in time, which would need periodic full-state snapshots this system doesn't keep (only `CongestionSnapshot` exists, and only for lanes). Pick a time window, then scrub or press Play to advance a cursor through the real chronological event sequence at an adjustable speed — useful for post-incident review or training walkthroughs. `GET /api/audit` gained `since`/`until`/`order=asc` for this.
+
 ## Confidence / Policy Gate (`src/policy/ConfidenceGate.ts`)
 
 A transparent composite score for any `READY` plan — explicitly *not* claimed to be statistically validated, matching the report's own caveat about this kind of decision-support number:
@@ -230,6 +234,7 @@ Thin route handlers with no business logic beyond wiring — every route just ca
 | `POST /api/ops-assistant/ask` | Operations Assistant free-text Q&A, grounded in a live snapshot. |
 | `GET /api/simulation/scenarios`, `POST /api/simulation/scenarios/[id]/run` | Training/validation scenario library. |
 | `GET /api/workers/[id]/history` | A worker's recent completed/retrieved tasks. |
+| `POST /api/auth/change-password` | Requires re-proving the current password; the session cookie alone isn't enough. |
 | `POST /api/simulation/{start,stop,status,congestion,block-lane,unblock-lanes,move-equipment,rfid-event,equipment-status}` | The live demo controls. |
 
 ## Dashboard & Worker App (`src/app/page.tsx`, `src/app/worker/page.tsx`)
@@ -252,6 +257,7 @@ A dark, always-on "ops console" theme (not adaptive to system light/dark — a d
 - **Analytics** (`/analytics`) — KPI dashboard: throughput, retrieval/queue time stat tiles, task-status and request-outcome breakdown bars, equipment/worker utilization meters, alert volume by type, incident resolution time by type. Selectable time window (6h/24h/7d).
 - **Global Notification Surface** (`src/app/GlobalAlertBar.tsx`, mounted in the root layout) — a slim, dismissible banner on every page (except `/login`) for URGENT open agent alerts and open incidents specifically; deliberately narrow so it doesn't just duplicate the page-local badges everything else already has.
 - **Ask Operations** — a compact Q&A panel on the dashboard (sample questions, last 5 exchanges) backed by the Operations Assistant; shows a "(fallback summary — AI unavailable)" tag when the deterministic fallback answered instead of Gemini.
+- **Settings** (`/settings`) — read-only profile (name/email/role, admin-managed), a change-password form, and a pointer to the Agent thresholds page rather than duplicating those controls.
 - **Worker App** (`/worker`) — pick a worker, see their one active task (if any), Start → Confirm Retrieval, plus a "Recent" list of their last 10 completed/retrieved tasks.
 
 Both pages poll the relevant API routes every 5–8 seconds for live updates, with a real ticking clock and a real alert count (blocked lanes + digital-twin conflicts) in the header. Key interactive controls (the retrieval request input, the override equipment select and reason field, the worker picker) carry explicit `aria-label`s rather than relying on placeholder text alone, since placeholder-only labeling disappears for screen readers once the field has a value.

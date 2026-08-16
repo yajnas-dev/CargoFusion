@@ -125,7 +125,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-const DISABLED_NAV_ITEMS = ["Alerts", "Settings"];
+const DISABLED_NAV_ITEMS = ["Alerts"];
 
 const NAV_LINKS: { label: string; targetId: string }[] = [
   { label: "Dashboard", targetId: "top" },
@@ -356,6 +356,12 @@ export default function Dashboard() {
           </Link>
           <Link href="/analytics" className={styles.navItem}>
             Analytics
+          </Link>
+          <Link href="/history" className={styles.navItem}>
+            Shift Timeline
+          </Link>
+          <Link href="/settings" className={styles.navItem}>
+            Settings
           </Link>
           <Link href="/simulation" className={styles.navItem}>
             Simulation

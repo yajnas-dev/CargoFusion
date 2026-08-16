@@ -43,6 +43,8 @@ export const config = {
     "/audit/:path*",
     "/incidents/:path*",
     "/analytics/:path*",
+    "/history/:path*",
+    "/settings/:path*",
     "/api/:path*",
   ],
 };
