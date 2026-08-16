@@ -1,4 +1,5 @@
 import { Type, type GenerativeModelClient } from "@/agents/GeminiClient";
+import { fallbackRank } from "@/agent-monitor/AlertRankerFallback";
 import type { CandidateAlert, RankedAlert, YardSnapshotForPrompt } from "@/agent-monitor/types";
 
 const SCHEMA = {
@@ -45,11 +46,24 @@ export class AlertRanker {
     );
 
     const ranked: RankedAlert[] = [];
+    const coveredCandidates = new Set<CandidateAlert>();
     for (const entry of raw) {
       const candidate = candidates[entry.index];
       if (!candidate) continue; // defensive: an out-of-range index from a malformed response is dropped, not thrown
       ranked.push({ candidate, rankScore: clamp01(entry.rankScore), explanation: entry.explanation });
+      coveredCandidates.add(candidate);
     }
+
+    // The model's response can omit candidates outright — a large list, a
+    // token limit, or just an incomplete enumeration — and that must never
+    // mean a real detected issue silently never becomes an alert. Whatever
+    // it left out is still raised, deterministically ranked/explained
+    // instead of lost.
+    const uncovered = candidates.filter((c) => !coveredCandidates.has(c));
+    if (uncovered.length > 0) {
+      ranked.push(...fallbackRank(uncovered));
+    }
+
     return ranked;
   }
 }

@@ -77,6 +77,31 @@ describe("AlertRanker", () => {
     expect(ranked[0].rankScore).toBe(1);
   });
 
+  it("never drops a candidate the model's response leaves out — fills the gap with a deterministic fallback ranking instead", async () => {
+    const candidates = [
+      candidate({ dedupeKey: "covered", type: "BLOCKED_LANE_IMPACT", severity: "URGENT" }),
+      candidate({ dedupeKey: "left-out-1", type: "EQUIPMENT_TASK_MISMATCH", severity: "LOW" }),
+      candidate({ dedupeKey: "left-out-2", type: "AGING_TASK", severity: "HIGH" }),
+    ];
+    // Only ranks index 0 — a real, observed Gemini behavior with a large
+    // candidate list, not just a malformed-response edge case.
+    const fake = new FakeModel([{ index: 0, rankScore: 0.9, explanation: "AI explanation for the covered one." }]);
+
+    const ranked = await new AlertRanker(fake).rank(candidates, SNAPSHOT);
+
+    expect(ranked).toHaveLength(3); // nothing silently dropped
+    const covered = ranked.find((r) => r.candidate.dedupeKey === "covered");
+    expect(covered?.explanation).toBe("AI explanation for the covered one.");
+    expect(covered?.rankScore).toBe(0.9);
+
+    const leftOut1 = ranked.find((r) => r.candidate.dedupeKey === "left-out-1");
+    const leftOut2 = ranked.find((r) => r.candidate.dedupeKey === "left-out-2");
+    expect(leftOut1).toBeDefined();
+    expect(leftOut2).toBeDefined();
+    expect(leftOut1?.explanation.length).toBeGreaterThan(0); // fallback template, not empty
+    expect(leftOut2?.rankScore).toBe(0.75); // fallbackRank's severity weight for HIGH
+  });
+
   it("includes each candidate's type/severity and the yard snapshot in the prompt, plus a do-not-invent instruction", async () => {
     const candidates = [candidate({ type: "CONGESTION_HOTSPOT", severity: "HIGH", dedupeKey: "c" })];
     const fake = new FakeModel([{ index: 0, rankScore: 0.5, explanation: "x" }]);
