@@ -1,10 +1,19 @@
 import { prisma } from "@/domain/db";
 import { eventBus } from "@/events/InProcessEventBus";
 import { TOPICS } from "@/events/topics";
+import { AVERAGE_SPEED_METERS_PER_SECOND, LANE_SCALE_METERS } from "@/domain/constants";
+import { resolveArrivedEquipmentMovements } from "@/domain/equipmentMovement";
+import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
+import { RouteOptimizationService } from "@/optimization/RouteOptimizationService";
 import type { Equipment, EquipmentStatus, SensorEvent, YardLane } from "@/domain/types";
 
 const MIN_CONGESTION = 1.0;
 const MAX_CONGESTION = 3.0;
+
+// Floor so even a very short hop still reads as deliberate travel, not an
+// instant snap — real yard maneuvering (slowing, positioning) takes time
+// beyond pure transit at cruising speed.
+const MIN_TRANSIT_MS = 4000;
 
 /**
  * Explicit, operator-triggered demo actions (report section 13: "simulate
@@ -77,19 +86,52 @@ export class DemoControls {
     return result.count;
   }
 
+  /**
+   * Starts a timed transit toward the target node instead of teleporting —
+   * real-world digital-twin realism: travel time is distanceMeters /
+   * AVERAGE_SPEED_METERS_PER_SECOND, the same speed RouteOptimizationService
+   * quotes ETAs with. currentNodeId only updates once the transit's
+   * movementArrivesAt actually passes (resolveArrivedEquipmentMovements,
+   * called on every equipment read) — this call just sets it in motion.
+   * Equipment already mid-transit is left alone rather than redirected
+   * mid-drive; the random-equipment picker only considers idle equipment
+   * in the first place, so this mainly guards the explicit-equipmentId path.
+   */
   async moveEquipment(equipmentId?: string, nodeId?: string): Promise<Equipment | null> {
+    await resolveArrivedEquipmentMovements();
+
     const equipment = equipmentId
       ? await prisma.equipment.findUnique({ where: { id: equipmentId } })
-      : pickRandom(await prisma.equipment.findMany());
+      : pickRandom(await prisma.equipment.findMany({ where: { movementArrivesAt: null } }));
     if (!equipment) return null;
 
+    if (equipment.movementArrivesAt) {
+      return equipment; // already mid-transit — let it arrive before accepting a new order
+    }
+
     const targetNodeId = nodeId ?? (await this.randomNeighborNode(equipment.currentNodeId));
+    if (targetNodeId === equipment.currentNodeId) return equipment; // isolated node — nowhere to go
+
+    const distanceMeters = await this.distanceBetween(equipment.currentNodeId, targetNodeId);
+    const durationMs = Math.max(MIN_TRANSIT_MS, (distanceMeters / AVERAGE_SPEED_METERS_PER_SECOND) * 1000);
+    const now = new Date();
+
     const updated = await prisma.equipment.update({
       where: { id: equipment.id },
-      data: { currentNodeId: targetNodeId },
+      data: {
+        movementTargetNodeId: targetNodeId,
+        movementStartedAt: now,
+        movementArrivesAt: new Date(now.getTime() + durationMs),
+      },
     });
     eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId: equipment.id });
     return updated;
+  }
+
+  /** Real path distance (not just straight-line) so a multi-hop explicit-node move gets a realistic duration too. */
+  private async distanceBetween(fromNodeId: string, toNodeId: string): Promise<number> {
+    const route = await new RouteOptimizationService(new MockTOSAdapter()).computeRoute(fromNodeId, toNodeId);
+    return route?.distanceMeters ?? LANE_SCALE_METERS;
   }
 
   async setEquipmentStatus(equipmentId: string, status: EquipmentStatus): Promise<Equipment> {

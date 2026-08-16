@@ -17,3 +17,13 @@ export const LANE_SCALE_METERS = 50;
  * of sync with each other.
  */
 export const ACTIVE_TASK_STATUSES = ["PLANNED", "APPROVED", "DISPATCHED", "IN_PROGRESS"] as const;
+
+/**
+ * Average yard vehicle speed used for both ETA estimation
+ * (RouteOptimizationService) and the simulated real travel time equipment
+ * takes to move between nodes (src/domain/equipmentMovement.ts) — a
+ * round, illustrative figure for the prototype, not a validated
+ * operational figure. Shared so a route's quoted ETA and how long the
+ * simulation actually takes to move equipment can't drift apart.
+ */
+export const AVERAGE_SPEED_METERS_PER_SECOND = 4; // ~14.4 km/h

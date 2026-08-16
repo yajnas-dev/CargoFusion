@@ -60,6 +60,9 @@ describe("PlanExplainer", () => {
           capacityKg: 20000,
           currentNodeId: "GATE",
           lastSyncedAt: new Date(),
+          movementTargetNodeId: null,
+          movementStartedAt: null,
+          movementArrivesAt: null,
         },
         score: 0.83,
         factors: {

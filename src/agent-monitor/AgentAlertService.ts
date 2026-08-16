@@ -129,6 +129,17 @@ export class AgentAlertService {
       case "FREE_STUCK_EQUIPMENT":
         result = await new WorkerTaskService().releaseEquipment(payload.equipmentId, actor);
         break;
+      case "INITIATE_RETRIEVAL":
+        // Same deterministic pipeline a human-typed request goes through
+        // (search -> allocate -> route -> twin -> confidence) — this only
+        // gets the container as far as a Task existing (PLANNED/REQUESTED),
+        // never skipping the normal Approve step that follows.
+        result = await new SupervisorApprovalService(tos).submitRequest({
+          containerQuery: payload.containerId,
+          requestedBy: actor,
+          priority: payload.priority,
+        });
+        break;
       case "ESCALATE_TO_SUPERVISOR":
         throw new Error("ESCALATE_TO_SUPERVISOR has no automated action — dismiss it once handled.");
       default:

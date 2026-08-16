@@ -100,7 +100,16 @@
 }
 
 .equipmentMarker {
+  /* Fallback smoothing for any position change that isn't already
+     interpolated frame-by-frame in JS (see equipmentPosition in
+     YardMap.tsx). Disabled below while actually in transit, where a CSS
+     transition would lag a frame behind the real interpolated position
+     and visibly fight it. */
   transition: transform 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.equipmentMarkerMoving {
+  transition: none;
 }
 
 .legend {

@@ -23,6 +23,10 @@ export interface MapEquipment {
   type: "CRANE" | "YARD_TRUCK";
   status: "AVAILABLE" | "BUSY" | "OFFLINE";
   currentNodeId: string;
+  /** Set while mid-transit (src/domain/equipmentMovement.ts) — currentNodeId is still the origin until arrival. */
+  movementTargetNodeId?: string | null;
+  movementStartedAt?: string | null;
+  movementArrivesAt?: string | null;
 }
 
 interface Props {
@@ -57,13 +61,71 @@ function equipmentColor(status: MapEquipment["status"]): string {
   return "#6e7681";
 }
 
+interface EquipmentPlacement {
+  px: number;
+  py: number;
+  inTransit: boolean;
+  etaSeconds: number;
+}
+
+/** Interpolates an in-transit equipment's pixel position between its origin and target node against real elapsed time. */
+function equipmentPosition(
+  eq: MapEquipment,
+  nodeById: Map<string, MapNode>,
+  project: (n: MapNode) => { px: number; py: number },
+  nowMs: number,
+): EquipmentPlacement | null {
+  const originNode = nodeById.get(eq.currentNodeId);
+  if (!originNode) return null;
+  const origin = project(originNode);
+
+  const targetNode = eq.movementTargetNodeId ? nodeById.get(eq.movementTargetNodeId) : undefined;
+  if (!targetNode || !eq.movementStartedAt || !eq.movementArrivesAt) {
+    return { px: origin.px, py: origin.py, inTransit: false, etaSeconds: 0 };
+  }
+
+  const startedAt = new Date(eq.movementStartedAt).getTime();
+  const arrivesAt = new Date(eq.movementArrivesAt).getTime();
+  const totalMs = arrivesAt - startedAt;
+  const progress = totalMs > 0 ? Math.min(1, Math.max(0, (nowMs - startedAt) / totalMs)) : 1;
+
+  const destination = project(targetNode);
+  return {
+    px: origin.px + (destination.px - origin.px) * progress,
+    py: origin.py + (destination.py - origin.py) * progress,
+    inTransit: true,
+    etaSeconds: Math.max(0, Math.round((arrivesAt - nowMs) / 1000)),
+  };
+}
+
+/** requestAnimationFrame-driven clock, only ticking while `active` — avoids animating when nothing's actually moving. */
+function useLiveClock(active: boolean): number {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const frame = useRef<number>(0);
+
+  useEffect(() => {
+    if (!active) return;
+    const loop = () => {
+      setNowMs(Date.now());
+      frame.current = requestAnimationFrame(loop);
+    };
+    frame.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frame.current);
+  }, [active]);
+
+  return nowMs;
+}
+
 /**
  * 2D top-down rendering of the actual yard graph (real node coordinates
  * and lane topology from Phase 6's A* engine) — not a decorative
  * isometric mockup. Equipment markers transition smoothly between polls
- * when their currentNodeId changes (real state, animated); the route
- * marker along a highlighted path is a looping visual affordance for
- * "this is the planned route," not a live GPS feed.
+ * Equipment mid-transit (movementTargetNodeId set) is interpolated live
+ * between its origin and destination node in real time against the
+ * simulated arrival time — real distance-based travel duration, not a
+ * fixed-length CSS snap; the route marker along a highlighted path is a
+ * separate, looping visual affordance for "this is the planned route,"
+ * not a live GPS feed.
  */
 export default function YardMap({
   nodes,
@@ -98,6 +160,9 @@ export default function YardMap({
           .filter((n): n is MapNode => n !== undefined)
           .map(project)
       : [];
+
+  const hasEquipmentInTransit = equipment.some((e) => e.movementArrivesAt);
+  const nowMs = useLiveClock(hasEquipmentInTransit);
 
   return (
     <div className={`${styles.wrap} ${className ?? ""}`}>
@@ -223,15 +288,19 @@ export default function YardMap({
         })}
 
         {equipment.map((eq) => {
-          const node = nodeById.get(eq.currentNodeId);
-          if (!node) return null;
-          const { px, py } = project(node);
+          const placement = equipmentPosition(eq, nodeById, project, nowMs);
+          if (!placement) return null;
+          const { px, py, inTransit, etaSeconds } = placement;
           // Small deterministic offset per equipment id so multiple units at the same node don't fully overlap.
           const hash = [...eq.id].reduce((s, c) => s + c.charCodeAt(0), 0);
           const ox = ((hash % 7) - 3) * 4;
           const oy = ((Math.floor(hash / 7) % 7) - 3) * 4;
           return (
-            <g key={eq.id} className={styles.equipmentMarker} style={{ transform: `translate(${px + ox}px, ${py + oy}px)` }}>
+            <g
+              key={eq.id}
+              className={`${styles.equipmentMarker} ${inTransit ? styles.equipmentMarkerMoving : ""}`}
+              style={{ transform: `translate(${px + ox}px, ${py + oy}px)` }}
+            >
               {eq.type === "CRANE" ? (
                 <g>
                   {/* Gantry crane silhouette: mast, jib, hoist line — reads distinctly from the truck box at a glance. */}
@@ -252,6 +321,7 @@ export default function YardMap({
               )}
               <title>
                 {eq.id} · {eq.type} · {eq.status}
+                {inTransit ? ` · en route to ${eq.movementTargetNodeId}, arriving in ${etaSeconds}s` : ""}
               </title>
             </g>
           );

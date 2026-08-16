@@ -1,4 +1,5 @@
 import { prisma } from "@/domain/db";
+import { resolveArrivedEquipmentMovements } from "@/domain/equipmentMovement";
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import type {
   Container,
@@ -40,6 +41,7 @@ export class MockTOSAdapter implements TOSAdapter {
   }
 
   async getEquipment(id?: string): Promise<Equipment[]> {
+    await resolveArrivedEquipmentMovements();
     if (id) {
       const found = await prisma.equipment.findUnique({ where: { id } });
       return found ? [found] : [];

@@ -41,6 +41,7 @@ describe("AgentAlertService", () => {
     mutatedEquipmentIds.length = 0;
     if (createdTaskIds.length > 0) {
       await prisma.auditEvent.deleteMany({ where: { taskId: { in: createdTaskIds } } });
+      await prisma.recommendation.deleteMany({ where: { taskId: { in: createdTaskIds } } });
       await prisma.task.deleteMany({ where: { id: { in: createdTaskIds } } });
       createdTaskIds.length = 0;
     }
@@ -163,6 +164,36 @@ describe("AgentAlertService", () => {
 
       const updated = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
       expect(updated.priority).toBe("URGENT");
+    });
+
+    it("INITIATE_RETRIEVAL creates a real (non-approved) task via the normal submission pipeline", async () => {
+      const container = await prisma.container.findFirstOrThrow({
+        where: { retrievalEligible: true, status: "IN_YARD" },
+      });
+
+      const service = new AgentAlertService();
+      const [alert] = await service.raiseBatch([
+        ranked({
+          type: "UNCLAIMED_PRIORITY_CONTAINER",
+          suggestedActionType: "INITIATE_RETRIEVAL",
+          suggestedActionPayload: { containerId: container.id, priority: "URGENT" },
+          dedupeKey: `apply-initiate-retrieval-${container.id}`,
+        }),
+      ]);
+      createdAlertIds.push(alert.id);
+
+      const { alert: applied, result } = await service.apply(alert.id, "test-supervisor");
+      expect(applied.status).toBe("APPLIED");
+
+      const { task } = result as { task?: { id: string; status: string; containerId: string } };
+      expect(task).toBeDefined();
+      createdTaskIds.push(task!.id);
+      expect(task!.status).not.toBe("APPROVED");
+      expect(["PLANNED", "REQUESTED"]).toContain(task!.status);
+      expect(task!.containerId).toBe(container.id);
+
+      const persisted = await prisma.task.findUniqueOrThrow({ where: { id: task!.id } });
+      expect(persisted.containerId).toBe(container.id);
     });
 
     it("ESCALATE_TO_SUPERVISOR has no automated action and leaves the alert OPEN", async () => {

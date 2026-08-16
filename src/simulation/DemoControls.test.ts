@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { DemoControls } from "@/simulation/DemoControls";
+import { resolveArrivedEquipmentMovements } from "@/domain/equipmentMovement";
 import { prisma } from "@/domain/db";
 
 describe("DemoControls", () => {
@@ -24,10 +25,25 @@ describe("DemoControls", () => {
     }
   });
 
-  const equipmentSnapshots = new Map<string, { status: "AVAILABLE" | "BUSY" | "OFFLINE"; currentNodeId: string }>();
+  const equipmentSnapshots = new Map<
+    string,
+    {
+      status: "AVAILABLE" | "BUSY" | "OFFLINE";
+      currentNodeId: string;
+      movementTargetNodeId: string | null;
+      movementStartedAt: Date | null;
+      movementArrivesAt: Date | null;
+    }
+  >();
   async function snapshotEquipment(id: string) {
     const eq = await prisma.equipment.findUniqueOrThrow({ where: { id } });
-    equipmentSnapshots.set(id, { status: eq.status, currentNodeId: eq.currentNodeId });
+    equipmentSnapshots.set(id, {
+      status: eq.status,
+      currentNodeId: eq.currentNodeId,
+      movementTargetNodeId: eq.movementTargetNodeId,
+      movementStartedAt: eq.movementStartedAt,
+      movementArrivesAt: eq.movementArrivesAt,
+    });
     restoreEquipmentIds.push(id);
     return eq;
   }
@@ -98,16 +114,37 @@ describe("DemoControls", () => {
     expect(after.every((l) => l.congestionWeight === 1.0)).toBe(true);
   });
 
-  it("moveEquipment to an explicit node updates currentNodeId", async () => {
-    const equipment = await prisma.equipment.findFirstOrThrow();
+  it("moveEquipment to an explicit node starts a timed transit rather than teleporting", async () => {
+    const equipment = await prisma.equipment.findFirstOrThrow({ where: { currentNodeId: { not: "GATE" } } });
     await snapshotEquipment(equipment.id);
 
     const controls = new DemoControls();
+    const beforeCall = new Date();
     const moved = await controls.moveEquipment(equipment.id, "GATE");
-    expect(moved!.currentNodeId).toBe("GATE");
+
+    // Real-world-digital-twin realism: position doesn't jump immediately...
+    expect(moved!.currentNodeId).toBe(equipment.currentNodeId);
+    expect(moved!.movementTargetNodeId).toBe("GATE");
+    expect(moved!.movementStartedAt).not.toBeNull();
+    expect(moved!.movementArrivesAt).not.toBeNull();
+    expect(moved!.movementArrivesAt!.getTime()).toBeGreaterThan(beforeCall.getTime());
+
+    // ...until the transit's arrival time actually passes.
+    await prisma.equipment.update({
+      where: { id: equipment.id },
+      data: { movementArrivesAt: new Date(Date.now() - 1000) },
+    });
+    const resolvedCount = await resolveArrivedEquipmentMovements();
+    expect(resolvedCount).toBeGreaterThanOrEqual(1);
+
+    const arrived = await prisma.equipment.findUniqueOrThrow({ where: { id: equipment.id } });
+    expect(arrived.currentNodeId).toBe("GATE");
+    expect(arrived.movementTargetNodeId).toBeNull();
+    expect(arrived.movementStartedAt).toBeNull();
+    expect(arrived.movementArrivesAt).toBeNull();
   });
 
-  it("moveEquipment with no target moves to an actual neighboring node", async () => {
+  it("moveEquipment with no target starts a transit toward an actual neighboring node", async () => {
     const equipment = await prisma.equipment.findFirstOrThrow();
     await snapshotEquipment(equipment.id);
 
@@ -120,7 +157,21 @@ describe("DemoControls", () => {
 
     const controls = new DemoControls();
     const moved = await controls.moveEquipment(equipment.id);
-    expect(validNeighbors.has(moved!.currentNodeId)).toBe(true);
+    expect(moved!.currentNodeId).toBe(equipment.currentNodeId); // unchanged until arrival
+    expect(validNeighbors.has(moved!.movementTargetNodeId!)).toBe(true);
+  });
+
+  it("moveEquipment leaves equipment already mid-transit alone instead of redirecting it", async () => {
+    const equipment = await prisma.equipment.findFirstOrThrow({ where: { currentNodeId: { not: "GATE" } } });
+    await snapshotEquipment(equipment.id);
+
+    const controls = new DemoControls();
+    const first = await controls.moveEquipment(equipment.id, "GATE");
+    expect(first!.movementArrivesAt).not.toBeNull();
+
+    const second = await controls.moveEquipment(equipment.id, equipment.currentNodeId === "GATE" ? "GATE" : "SPINE-0");
+    expect(second!.movementTargetNodeId).toBe(first!.movementTargetNodeId); // still en route to the original target
+    expect(second!.movementArrivesAt!.getTime()).toBe(first!.movementArrivesAt!.getTime());
   });
 
   it("flapRandomEquipmentAvailability toggles a non-BUSY equipment between AVAILABLE and OFFLINE", async () => {

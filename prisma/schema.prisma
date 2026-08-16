@@ -79,6 +79,14 @@ model Equipment {
   currentNode   YardNode        @relation(fields: [currentNodeId], references: [id])
   lastSyncedAt  DateTime        @default(now())
 
+  // In-progress movement, modeling real travel time instead of an instant
+  // position update (src/domain/equipmentMovement.ts resolves these once
+  // movementArrivesAt passes). currentNodeId stays the last *confirmed*
+  // position — the source of truth for routing/allocation — until then.
+  movementTargetNodeId String?
+  movementStartedAt    DateTime?
+  movementArrivesAt    DateTime?
+
   tasks Task[]
 
   @@index([status, type])
@@ -259,6 +267,7 @@ enum AgentAlertType {
   CONGESTION_HOTSPOT
   EQUIPMENT_TASK_MISMATCH
   URGENT_CONTAINER_UNACTIONED
+  UNCLAIMED_PRIORITY_CONTAINER
 }
 
 enum AgentAlertStatus {
@@ -273,6 +282,7 @@ enum SuggestedActionType {
   REASSIGN_EQUIPMENT
   REPRIORITIZE_TASK
   FREE_STUCK_EQUIPMENT
+  INITIATE_RETRIEVAL
   ESCALATE_TO_SUPERVISOR
 }
 

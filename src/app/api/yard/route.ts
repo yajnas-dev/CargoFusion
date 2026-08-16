@@ -3,6 +3,7 @@ import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
 import { prisma } from "@/domain/db";
 
 export async function GET() {
+  const tos = new MockTOSAdapter();
   const [
     yardState,
     equipment,
@@ -13,8 +14,8 @@ export async function GET() {
     craneTotal,
     craneBusy,
   ] = await Promise.all([
-    new MockTOSAdapter().getYardState(),
-    prisma.equipment.findMany(),
+    tos.getYardState(),
+    tos.getEquipment(), // resolves any arrived transits (src/domain/equipmentMovement.ts) before reading position
     prisma.container.groupBy({ by: ["block"], _count: { _all: true } }),
     prisma.task.count({ where: { status: { in: ["APPROVED", "DISPATCHED", "IN_PROGRESS"] } } }),
     prisma.container.count(),

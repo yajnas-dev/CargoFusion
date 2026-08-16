@@ -13,6 +13,7 @@ type SuggestedActionType =
   | "REASSIGN_EQUIPMENT"
   | "REPRIORITIZE_TASK"
   | "FREE_STUCK_EQUIPMENT"
+  | "INITIATE_RETRIEVAL"
   | "ESCALATE_TO_SUPERVISOR";
 
 interface AgentAlert {

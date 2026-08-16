@@ -23,9 +23,22 @@ describe("fallbackRank", () => {
       "CONGESTION_HOTSPOT",
       "EQUIPMENT_TASK_MISMATCH",
       "URGENT_CONTAINER_UNACTIONED",
+      "UNCLAIMED_PRIORITY_CONTAINER",
     ];
     const candidates = types.map((type) =>
-      candidate({ type, subject: { laneId: "L1", taskId: "T1", equipmentId: "E1", statusSince: "now", congestionWeight: 3 } }),
+      candidate({
+        type,
+        subject: {
+          laneId: "L1",
+          taskId: "T1",
+          equipmentId: "E1",
+          statusSince: "now",
+          congestionWeight: 3,
+          containerId: "C1",
+          priority: "HIGH",
+          block: "A1",
+        },
+      }),
     );
 
     const ranked = fallbackRank(candidates);

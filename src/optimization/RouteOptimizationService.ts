@@ -1,10 +1,7 @@
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import { YardGraph } from "@/optimization/YardGraph";
 import { findPath, type RouteResult } from "@/optimization/astar";
-
-// Average yard vehicle speed used for ETA estimation. A round, illustrative
-// figure for the prototype — not a validated operational figure.
-const AVERAGE_SPEED_METERS_PER_SECOND = 4; // ~14.4 km/h
+import { AVERAGE_SPEED_METERS_PER_SECOND } from "@/domain/constants";
 
 export interface Route extends RouteResult {
   estimatedSeconds: number;

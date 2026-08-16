@@ -30,6 +30,8 @@ function templateFor(candidate: CandidateAlert): string {
       return `Equipment ${candidate.subject.equipmentId} is marked busy but no active task currently claims it.`;
     case "URGENT_CONTAINER_UNACTIONED":
       return `Task ${candidate.taskId} is URGENT priority but has not progressed past REQUESTED.`;
+    case "UNCLAIMED_PRIORITY_CONTAINER":
+      return `Container ${candidate.subject.containerId} (${candidate.subject.priority} priority, block ${candidate.subject.block}) is eligible for retrieval but nobody has requested it yet.`;
     default:
       return "A yard condition needs attention.";
   }
