@@ -73,13 +73,12 @@ export default function GlobalAlertBar() {
   }, [skip, refresh]);
 
   useLiveEvents(
-    skip
-      ? {}
-      : {
-          [TOPICS.AGENT_ALERT_RAISED]: () => refresh(),
-          [TOPICS.AGENT_ALERT_RESOLVED]: () => refresh(),
-          [TOPICS.INCIDENT_CHANGED]: () => refresh(),
-        },
+    {
+      [TOPICS.AGENT_ALERT_RAISED]: () => refresh(),
+      [TOPICS.AGENT_ALERT_RESOLVED]: () => refresh(),
+      [TOPICS.INCIDENT_CHANGED]: () => refresh(),
+    },
+    !skip,
   );
 
   if (skip || dismissed) return null;

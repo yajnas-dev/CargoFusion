@@ -13,8 +13,13 @@ type Handlers = Partial<Record<Topic, (payload: unknown) => void>>;
  * EventSource auto-reconnects on a dropped connection; callers combine
  * this with a longer-interval fallback poll in case the stream stays
  * silently disconnected.
+ *
+ * `enabled` (default true) gates whether the connection opens at all —
+ * needed by callers like GlobalAlertBar that render on every page
+ * (including /login, before any session cookie exists) and can't just
+ * skip calling this hook, since hooks can't be conditional.
  */
-export function useLiveEvents(handlers: Handlers): { connected: boolean } {
+export function useLiveEvents(handlers: Handlers, enabled: boolean = true): { connected: boolean } {
   const handlersRef = useRef(handlers);
   const [connected, setConnected] = useState(false);
 
@@ -23,6 +28,7 @@ export function useLiveEvents(handlers: Handlers): { connected: boolean } {
   });
 
   useEffect(() => {
+    if (!enabled) return;
     const source = new EventSource("/api/events");
     const registered: Array<[string, EventListener]> = [];
 
@@ -48,7 +54,7 @@ export function useLiveEvents(handlers: Handlers): { connected: boolean } {
       for (const [topic, listener] of registered) source.removeEventListener(topic, listener);
       source.close();
     };
-  }, []);
+  }, [enabled]);
 
   return { connected };
 }
