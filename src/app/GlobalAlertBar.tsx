@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useLiveEvents } from "./useLiveEvents";
 import { TOPICS } from "@/events/topics";
+import { AlertTriangleIcon } from "./icons";
 import styles from "./GlobalAlertBar.module.css";
 
 interface UrgentAlert {
@@ -88,7 +89,9 @@ export default function GlobalAlertBar() {
 
   return (
     <div className={styles.bar}>
-      <span className={styles.icon}>⚠</span>
+      <span className={styles.icon}>
+        <AlertTriangleIcon size={15} />
+      </span>
       <span className={styles.message}>
         {urgentAlerts.length > 0 && (
           <>

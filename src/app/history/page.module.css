@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 28px;
+  padding: 15px 28px;
   border-bottom: 1px solid var(--ops-border);
   background: var(--ops-sidebar-bg);
 }
@@ -22,12 +22,14 @@
 }
 
 .topbarLeft h1 {
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .backLink {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -46,15 +48,17 @@
 .windowButton {
   padding: 6px 12px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-muted);
-  font-size: 0.8rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
 .windowButtonActive {
   background: var(--ops-accent-dim);
+  border-color: var(--ops-accent);
   color: var(--ops-text);
   font-weight: 600;
 }
@@ -87,7 +91,7 @@
   font-size: 0.85rem;
   padding: 30px;
   border: 1px dashed var(--ops-border);
-  border-radius: 10px;
+  border-radius: var(--ops-radius-md);
   text-align: center;
 }
 
@@ -96,7 +100,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-radius: 10px;
+  border-radius: var(--ops-radius-md);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
 }
@@ -105,9 +109,10 @@
   flex-shrink: 0;
   padding: 8px 16px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-accent);
-  color: #fff;
+  color: #06222a;
+  font-family: var(--ops-font-display);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -121,14 +126,14 @@
 .scrubber {
   flex: 1;
   min-width: 0;
+  accent-color: var(--ops-accent);
 }
 
 .cursorTime {
   flex-shrink: 0;
+  font-family: var(--ops-font-data);
   font-size: 0.8rem;
   color: var(--ops-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .speedPicker {
@@ -140,21 +145,24 @@
 .speedButton {
   padding: 5px 8px;
   border: 1px solid var(--ops-border);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-muted);
+  font-family: var(--ops-font-data);
   font-size: 0.72rem;
   cursor: pointer;
 }
 
 .speedButtonActive {
   background: var(--ops-accent-dim);
+  border-color: var(--ops-accent);
   color: var(--ops-text);
   font-weight: 600;
 }
 
 .progressLabel {
   flex-shrink: 0;
+  font-family: var(--ops-font-data);
   font-size: 0.75rem;
   color: var(--ops-muted);
   white-space: nowrap;
@@ -165,7 +173,7 @@
   min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--ops-border);
-  border-radius: 10px;
+  border-radius: var(--ops-radius-md);
   background: var(--ops-panel-bg);
   display: flex;
   flex-direction: column;
@@ -186,16 +194,21 @@
 }
 
 .eventTime {
+  font-family: var(--ops-font-data);
   color: var(--ops-muted);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .eventAction {
+  font-family: var(--ops-font-display);
   font-weight: 600;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .eventSubject {
+  font-family: var(--ops-font-data);
   color: var(--ops-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -211,8 +224,8 @@
 
 .eventDetails {
   color: var(--ops-muted);
-  font-family: ui-monospace, monospace;
-  font-size: 0.7rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.68rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

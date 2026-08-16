@@ -10,7 +10,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 16px 28px;
+  padding: 15px 28px;
   border-bottom: 1px solid var(--ops-border);
   background: var(--ops-sidebar-bg);
 }
@@ -22,12 +22,14 @@
 }
 
 .topbarLeft h1 {
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .backLink {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -39,10 +41,11 @@
 }
 
 .countBadge {
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 2px 9px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
+  font-family: var(--ops-font-data);
   font-size: 0.75rem;
   color: var(--ops-muted);
 }
@@ -56,18 +59,24 @@
 .select {
   padding: 7px 10px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-map-bg);
   color: var(--ops-text);
   font-size: 0.82rem;
 }
 
+.textInput:focus,
+.select:focus {
+  border-color: var(--ops-accent);
+}
+
 .applyButton {
   padding: 7px 14px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-accent);
-  color: #fff;
+  color: #06222a;
+  font-family: var(--ops-font-display);
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
@@ -86,7 +95,7 @@
 }
 
 .body {
-  padding: 22px 28px 60px;
+  padding: 20px 28px 60px;
   overflow-x: auto;
 }
 
@@ -96,7 +105,7 @@
   font-size: 0.82rem;
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
-  border-radius: 12px;
+  border-radius: var(--ops-radius-md);
 }
 
 .table th,
@@ -108,10 +117,16 @@
 }
 
 .table th {
+  font-family: var(--ops-font-display);
   color: var(--ops-muted);
   font-weight: 600;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--ops-panel-bg-alt);
+}
+
+.table tbody tr:hover {
   background: var(--ops-panel-bg-alt);
 }
 
@@ -122,27 +137,30 @@
 .timeCell {
   white-space: nowrap;
   color: var(--ops-muted);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--ops-font-data);
 }
 
 .actionBadge {
-  padding: 3px 9px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
-  font-size: 0.68rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
 .taskLink {
+  font-family: var(--ops-font-data);
   color: var(--ops-accent);
 }
 
 .detailsCell {
   color: var(--ops-muted);
-  font-family: ui-monospace, monospace;
-  font-size: 0.74rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.72rem;
   max-width: 420px;
   word-break: break-word;
 }

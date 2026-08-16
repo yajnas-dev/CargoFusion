@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 28px;
+  padding: 15px 28px;
   border-bottom: 1px solid var(--ops-border);
   background: var(--ops-sidebar-bg);
 }
@@ -20,12 +20,14 @@
 }
 
 .topbarLeft h1 {
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .backLink {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -44,15 +46,17 @@
 .windowButton {
   padding: 6px 12px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-muted);
-  font-size: 0.8rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
 .windowButtonActive {
   background: var(--ops-accent-dim);
+  border-color: var(--ops-accent);
   color: var(--ops-text);
   font-weight: 600;
 }
@@ -65,10 +69,10 @@
 }
 
 .body {
-  padding: 22px 28px 60px;
+  padding: 20px 28px 60px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 /* Stat tiles */
@@ -76,29 +80,31 @@
 .statRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .statTile {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 16px;
-  border-radius: 10px;
+  padding: 13px 15px;
+  border-radius: var(--ops-radius-md);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
 }
 
 .statLabel {
-  font-size: 0.7rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.68rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
 }
 
 .statValue {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-size: 1.3rem;
+  font-weight: 600;
 }
 
 .statSub {
@@ -117,7 +123,7 @@
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 
 @media (max-width: 900px) {
@@ -128,13 +134,14 @@
 
 .panel {
   border: 1px solid var(--ops-border);
-  border-radius: 12px;
-  padding: 18px 20px;
+  border-radius: var(--ops-radius-md);
+  padding: 17px 19px;
   background: var(--ops-panel-bg);
 }
 
 .panel h2 {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
   margin-bottom: 14px;
 }
 
@@ -168,15 +175,15 @@
 }
 
 .barTrack {
-  height: 16px;
-  border-radius: 4px;
+  height: 14px;
+  border-radius: 2px;
   background: var(--ops-panel-bg-alt);
   overflow: hidden;
 }
 
 .barFill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 2px;
   min-width: 3px;
 }
 
@@ -197,10 +204,10 @@
 }
 
 .barValue {
+  font-family: var(--ops-font-data);
   font-size: 0.78rem;
   font-weight: 600;
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Utilization meter */
@@ -218,13 +225,14 @@
 }
 
 .meterTotal {
+  font-family: var(--ops-font-data);
   color: var(--ops-muted);
 }
 
 .meterTrack {
   display: flex;
-  height: 18px;
-  border-radius: 5px;
+  height: 16px;
+  border-radius: 2px;
   overflow: hidden;
   background: var(--ops-panel-bg-alt);
   gap: 2px;
@@ -245,7 +253,8 @@
 .meterLegend {
   display: flex;
   gap: 14px;
-  font-size: 0.74rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.72rem;
   color: var(--ops-muted);
 }
 
@@ -259,8 +268,8 @@
 .dotBusy,
 .dotOffline {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
 
@@ -303,11 +312,17 @@
   border-bottom: 1px solid var(--ops-border);
 }
 
+.trendTable td {
+  font-family: var(--ops-font-data);
+}
+
 .trendTable th {
+  font-family: var(--ops-font-display);
   color: var(--ops-muted);
   font-weight: 600;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .trendUp {

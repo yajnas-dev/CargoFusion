@@ -27,12 +27,14 @@
 }
 
 .topbarLeft h1 {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
+  font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 .backLink {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -48,18 +50,19 @@
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
-  font-size: 0.72rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.7rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .liveBadgeOn {
   color: var(--ops-green);
-  border-color: rgba(63, 185, 80, 0.35);
+  border-color: rgba(62, 207, 142, 0.35);
 }
 
 .liveDot {
@@ -76,10 +79,10 @@
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.55);
+    box-shadow: 0 0 0 0 rgba(62, 207, 142, 0.55);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(63, 185, 80, 0);
+    box-shadow: 0 0 0 5px rgba(62, 207, 142, 0);
   }
 }
 
@@ -93,18 +96,21 @@
 
 .blockedBadge {
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--ops-radius-sm);
   background: rgba(229, 72, 77, 0.15);
   color: var(--ops-red);
+  font-family: var(--ops-font-data);
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .clock {
+  font-family: var(--ops-font-data);
   font-variant-numeric: tabular-nums;
 }
 
 .workerLink {
+  font-family: var(--ops-font-display);
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -132,14 +138,15 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 22px;
 }
 
 .feedHeading {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.78rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   margin-bottom: 10px;
 }
 
@@ -148,12 +155,12 @@
   font-size: 0.85rem;
   padding: 20px;
   border: 1px dashed var(--ops-border);
-  border-radius: 10px;
+  border-radius: var(--ops-radius-md);
   text-align: center;
 }
 
 .resolvedSection {
-  opacity: 0.75;
+  opacity: 0.7;
 }
 
 .alertList {
@@ -163,7 +170,7 @@
 }
 
 .controls {
-  width: 380px;
+  width: 370px;
   flex-shrink: 0;
   border-left: 1px solid var(--ops-border);
   background: var(--ops-sidebar-bg);
@@ -189,8 +196,8 @@
 /* Alert cards */
 
 .alertCard {
-  padding: 14px 16px;
-  border-radius: 10px;
+  padding: 13px 15px;
+  border-radius: var(--ops-radius-md);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
   border-left: 3px solid var(--ops-border);
@@ -223,20 +230,25 @@
 }
 
 .alertType {
+  font-family: var(--ops-font-display);
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.03em;
-  text-transform: capitalize;
+  text-transform: uppercase;
   color: var(--ops-muted);
 }
 
 .alertSeverity {
-  font-size: 0.68rem;
-  padding: 2px 8px;
-  border-radius: 999px;
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
   color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .alertExplanation {
@@ -245,20 +257,22 @@
 }
 
 .rerouteBox {
-  font-size: 0.76rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.74rem;
   color: var(--ops-text);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   padding: 6px 10px;
 }
 
 .rerouteBoxNone {
-  font-size: 0.76rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.74rem;
   color: var(--ops-red);
   background: rgba(229, 72, 77, 0.1);
   border: 1px solid rgba(229, 72, 77, 0.25);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   padding: 6px 10px;
 }
 
@@ -266,7 +280,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 0.72rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.7rem;
   color: var(--ops-muted);
 }
 
@@ -283,9 +298,10 @@
 .applyButton {
   padding: 7px 14px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-green);
-  color: #fff;
+  color: #042216;
+  font-family: var(--ops-font-display);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -294,11 +310,16 @@
 .dismissButton {
   padding: 7px 14px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-text);
+  font-family: var(--ops-font-display);
   font-size: 0.8rem;
   cursor: pointer;
+}
+
+.dismissButton:hover {
+  border-color: var(--ops-accent);
 }
 
 .applyButton:disabled,
@@ -320,21 +341,23 @@
   flex-direction: column;
   gap: 3px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
 }
 
 .miniStatLabel {
-  font-size: 0.66rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.64rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .miniStatValue {
+  font-family: var(--ops-font-data);
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .miniStatValueRed {
@@ -353,13 +376,14 @@
 
 .section h2 {
   font-size: 0.85rem;
+  font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 .sectionHint {
   font-size: 0.76rem;
   color: var(--ops-muted);
-  line-height: 1.4;
+  line-height: 1.45;
   margin-top: -4px;
 }
 
@@ -367,26 +391,36 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.76rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: var(--ops-muted);
 }
 
 .numberInput {
   padding: 8px 10px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-map-bg);
   color: var(--ops-text);
+  font-family: var(--ops-font-data);
   font-size: 0.85rem;
+}
+
+.numberInput:focus {
+  border-color: var(--ops-accent);
 }
 
 .startButton,
 .stopButton {
   padding: 9px 14px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-display);
   font-size: 0.85rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
   color: #fff;
   cursor: pointer;
   white-space: nowrap;
@@ -394,6 +428,7 @@
 
 .startButton {
   background: var(--ops-green);
+  color: #042216;
 }
 
 .stopButton {

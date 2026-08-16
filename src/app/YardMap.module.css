@@ -10,30 +10,33 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.78rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--ops-muted);
 }
 
 .liveDot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #6e7681;
+  background: #5c6b7d;
   display: inline-block;
 }
 
 .liveDotOn {
-  background: #3fb950;
+  background: var(--ops-green);
   animation: pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.55);
+    box-shadow: 0 0 0 0 rgba(62, 207, 142, 0.55);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(63, 185, 80, 0);
+    box-shadow: 0 0 0 6px rgba(62, 207, 142, 0);
   }
 }
 
@@ -43,36 +46,43 @@
   flex: 1;
   min-height: 0;
   background: var(--ops-map-bg);
-  border-radius: 10px;
+  background-image:
+    linear-gradient(rgba(47, 199, 217, 0.05) 1px, transparent 1px),
+    linear-gradient(to right, rgba(47, 199, 217, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  border-radius: var(--ops-radius-md);
   border: 1px solid var(--ops-border);
 }
 
 .junction {
-  fill: #4a5063;
+  fill: #4a5568;
 }
 
 .nodeLabel {
+  font-family: var(--ops-font-display);
   font-size: 10px;
   fill: var(--ops-muted);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .blockStack {
-  fill: #5b8def;
-  stroke: #2563eb;
+  fill: #163038;
+  stroke: var(--ops-accent);
   stroke-width: 1;
   transition: opacity 0.6s ease;
 }
 
 .blockLetter {
+  font-family: var(--ops-font-display);
   font-size: 13px;
   font-weight: 700;
-  fill: #fff;
+  fill: var(--ops-accent);
 }
 
 .blockCountLabel {
+  font-family: var(--ops-font-data);
   font-size: 9px;
-  fill: rgba(255, 255, 255, 0.85);
+  fill: rgba(231, 237, 243, 0.75);
 }
 
 .lane {
@@ -116,7 +126,9 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  font-size: 0.72rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.01em;
   color: var(--ops-muted);
 }
 
@@ -127,24 +139,23 @@
 }
 
 .legendDot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
 }
 
 .legendLine {
   width: 14px;
-  height: 3px;
-  border-radius: 2px;
+  height: 2px;
   display: inline-block;
 }
 
 .legendBarrier {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  border: 2px solid #e5484d;
-  background: #0d1117;
+  border: 1.5px solid var(--ops-red);
+  background: var(--ops-map-bg);
   display: inline-block;
 }

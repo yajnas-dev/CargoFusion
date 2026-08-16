@@ -239,9 +239,9 @@ Thin route handlers with no business logic beyond wiring — every route just ca
 
 ## Dashboard & Worker App (`src/app/page.tsx`, `src/app/worker/page.tsx`)
 
-A dark, always-on "ops console" theme (not adaptive to system light/dark — a deliberate branding choice for a dedicated operations tool):
+A dark, always-on "ops console" theme (not adaptive to system light/dark — a deliberate branding choice for a dedicated operations tool). See "Design system" below for the visual language.
 
-- **Sidebar** — real navigation to every section that exists (Dashboard, Container Search, Operations, Approval Queue, Equipment, Workers, Audit Trail, Simulation, Agent, each with active-state highlighting); sidebar items for sections that still don't exist (Alerts as a unified cross-page feed, Analytics, Settings) are clearly marked and show a dismissing "not built yet" toast on click rather than doing nothing.
+- **Sidebar** — real navigation to every section that exists (Dashboard, Container Search, Operations, Approval Queue, Equipment, Workers, Audit Trail, Incidents, Analytics, Shift Timeline, Settings, Simulation, Agent, each with active-state highlighting); the one remaining stub is Alerts (a unified cross-page feed) — judged redundant with the Global Notification Surface plus `/agent`, not a real gap — which shows a dismissing "not built yet" toast on click rather than doing nothing.
 - **Shift-Start Overview** — a row of clickable cards above the stat row answering "what needs me right now": pending approvals, aging/unactioned alerts, open alerts by severity, blocked lanes, equipment/worker availability — each linking straight to the page that acts on it. Derived from data already being polled, no extra endpoints.
 - **Stat row** — total containers, containers currently in yard, active tasks, equipment availability, crane utilization, average congestion — all real aggregate queries, no placeholder numbers.
 - **Yard Map (Live)** — a real 2D SVG rendering of the actual yard graph (the same node coordinates and lane topology A* uses, not a decorative illustration). Equipment markers smoothly animate to their new position whenever `currentNodeId` changes between polls; lanes are colored by real congestion weight and dashed when blocked; the most recently computed route is highlighted with a looping marker labeled "Planned route" (not implying live GPS tracking, since it isn't one).
@@ -301,13 +301,22 @@ See the "Prototype vs. Report" table in [`PROTOTYPE_IMPLEMENTATION_PLAN.md`](./P
 
 ---
 
+## Design system — "Night Bridge"
+
+The UI is modeled on ship's-bridge and VTS (vessel traffic service) control-room instrumentation, not a generic SaaS admin template — real bridges and terminal control rooms run dimmed for 24/7 use and night vision, with a small vocabulary of signal colors that carry real meaning rather than decoration. All tokens live in `src/app/globals.css` as `--ops-*` custom properties, so every page's CSS Module inherits the same system automatically.
+
+- **Color** — near-black cool surfaces (`--ops-bg`/`--ops-panel-bg`/`--ops-border`, never pure `#000`), one signal-cyan accent (`--ops-accent`) for anything interactive, and a status vocabulary (`--ops-green`/`--ops-amber`/`--ops-red`) reserved for nominal/caution/alarm meaning only — never reused as a decorative color.
+- **Type** — three IBM Plex faces, each with one job (`src/app/layout.tsx` loads them via `next/font/google`): `--ops-font-display` (Sans Condensed) for headers/nav/labels, `--ops-font-data` (Mono, tabular figures) for every number/id/timestamp, `--ops-font-body` (Sans) for prose. The mono-for-data rule is the single biggest lever for reading as instrumentation rather than a CRUD app.
+- **Structure** — sharp `--ops-radius-sm`/`--ops-radius-md` corners (3–5px, not soft SaaS rounding), a 3px left "status rail" on cards/rows carrying state instead of a badge-only signal, and a restrained bracket corner-tick motif (a callback to gantry-camera container-ID recognition overlays) on the dashboard's primary KPI tiles and the login card — used sparingly so it stays a signature, not wallpaper.
+- **Icons** (`src/app/icons.tsx`) — a small shared set of stroke-based inline SVGs (anchor, bell, grid-map, agent-node, crane, truck, check, alert-triangle, clock), replacing the emoji the prototype originally used.
+
 ## Tech stack
 
 - **Framework**: Next.js 16 (App Router, TypeScript, Turbopack)
 - **Database**: SQLite via Prisma 7 (driver-adapter pattern), seeded deterministically
 - **AI**: Google Gemini API (`@google/genai`)
 - **Testing**: Vitest, run serially against the real seeded database
-- **UI**: Plain CSS Modules, no component library — a hand-built dark ops-console theme with a live SVG yard-map visualization
+- **UI**: Plain CSS Modules, no component library — the "Night Bridge" dark ops-console design system (see above) with a live SVG yard-map visualization, type via IBM Plex (Sans / Sans Condensed / Mono) through `next/font/google`
 - **CI**: GitHub Actions (`.github/workflows/ci.yml`) — build, typecheck, lint, test on every push/PR to `main`
 
 ## Running it

@@ -27,12 +27,13 @@
 }
 
 .topbarLeft h1 {
-  font-size: 1.05rem;
-  letter-spacing: 0.01em;
+  font-size: 1.02rem;
+  font-weight: 600;
 }
 
 .backLink {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -48,18 +49,19 @@
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
-  font-size: 0.72rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.7rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .liveBadgeOn {
   color: var(--ops-green);
-  border-color: rgba(63, 185, 80, 0.35);
+  border-color: rgba(62, 207, 142, 0.35);
 }
 
 .liveDot {
@@ -76,10 +78,10 @@
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.55);
+    box-shadow: 0 0 0 0 rgba(62, 207, 142, 0.55);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(63, 185, 80, 0);
+    box-shadow: 0 0 0 5px rgba(62, 207, 142, 0);
   }
 }
 
@@ -93,18 +95,21 @@
 
 .blockedBadge {
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--ops-radius-sm);
   background: rgba(229, 72, 77, 0.15);
   color: var(--ops-red);
+  font-family: var(--ops-font-data);
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .clock {
+  font-family: var(--ops-font-data);
   font-variant-numeric: tabular-nums;
 }
 
 .workerLink {
+  font-family: var(--ops-font-display);
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -142,7 +147,7 @@
 }
 
 .controls {
-  width: 380px;
+  width: 370px;
   flex-shrink: 0;
   border-left: 1px solid var(--ops-border);
   background: var(--ops-sidebar-bg);
@@ -178,21 +183,23 @@
   flex-direction: column;
   gap: 3px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
 }
 
 .miniStatLabel {
-  font-size: 0.66rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.64rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .miniStatValue {
+  font-family: var(--ops-font-data);
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .miniStatValueRed {
@@ -211,13 +218,14 @@
 
 .section h2 {
   font-size: 0.85rem;
+  font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 .sectionHint {
   font-size: 0.76rem;
   color: var(--ops-muted);
-  line-height: 1.4;
+  line-height: 1.45;
   margin-top: -4px;
 }
 
@@ -231,10 +239,14 @@
   min-width: 0;
   padding: 9px 10px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-map-bg);
   color: var(--ops-text);
   font-size: 0.82rem;
+}
+
+.select:focus {
+  border-color: var(--ops-accent);
 }
 
 .actionGrid {
@@ -246,16 +258,17 @@
 .actionButton {
   padding: 9px 14px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-text);
-  font-size: 0.82rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
   cursor: pointer;
   text-align: left;
 }
 
 .actionButton:hover {
-  background: var(--ops-accent-dim);
+  border-color: var(--ops-accent);
 }
 
 .actionButton:disabled {
@@ -272,10 +285,11 @@
 .scenarioButton {
   padding: 9px 14px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-text);
-  font-size: 0.82rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
   cursor: pointer;
   text-align: left;
 }
@@ -293,7 +307,7 @@
   font-size: 0.76rem;
   color: var(--ops-muted);
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
 }
 
@@ -301,7 +315,8 @@
 .stopButton {
   padding: 9px 14px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-display);
   font-size: 0.85rem;
   font-weight: 600;
   color: #fff;
@@ -311,6 +326,7 @@
 
 .startButton {
   background: var(--ops-green);
+  color: #042216;
 }
 
 .stopButton {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useLiveEvents } from "../useLiveEvents";
 import { TOPICS } from "@/events/topics";
+import { CraneIcon, TruckIcon } from "../icons";
 import styles from "./page.module.css";
 
 type EquipmentType = "YARD_TRUCK" | "CRANE";
@@ -98,8 +99,11 @@ export default function EquipmentPage() {
           <tbody>
             {visible.map((e) => (
               <tr key={e.id}>
-                <td>{e.id}</td>
-                <td>{e.type === "CRANE" ? "🏗️ Crane" : "🚚 Yard Truck"}</td>
+                <td className={styles.idCell}>{e.id}</td>
+                <td className={styles.typeCell}>
+                  {e.type === "CRANE" ? <CraneIcon size={16} /> : <TruckIcon size={16} />}
+                  {e.type === "CRANE" ? "Crane" : "Yard Truck"}
+                </td>
                 <td>
                   <span className={`${styles.statusBadge} ${styles[`status${e.status}`]}`}>{e.status}</span>
                   {e.inTransit && <span className={styles.transitTag}>in transit</span>}

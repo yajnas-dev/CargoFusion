@@ -6,6 +6,17 @@ import { useRouter } from "next/navigation";
 import type { MapEquipment, MapLane, MapNode } from "./YardMap";
 import { useLiveEvents } from "./useLiveEvents";
 import { TOPICS } from "@/events/topics";
+import {
+  AnchorIcon,
+  BellIcon,
+  GridMapIcon,
+  AgentNodeIcon,
+  CraneIcon,
+  TruckIcon,
+  CheckIcon,
+  AlertTriangleIcon,
+  ClockIcon,
+} from "./icons";
 import styles from "./page.module.css";
 
 type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -320,7 +331,9 @@ export default function Dashboard() {
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <span className={styles.brandIcon}>⚓</span>
+          <span className={styles.brandIcon}>
+            <AnchorIcon size={22} />
+          </span>
           <div>
             <div className={styles.brandName}>ACSA</div>
             <div className={styles.brandSub}>Autonomous Container Search Assistant</div>
@@ -399,12 +412,12 @@ export default function Dashboard() {
         <header className={styles.topbar}>
           <div>
             <h1>Container Search Assistant</h1>
-            <p className={styles.topbarSub}>CargoFusion Terminal — prototype demo</p>
+            <p className={styles.topbarSub}>CargoFusion Terminal Operations</p>
           </div>
           <div className={styles.topbarRight}>
             <span className={styles.clock}>{clock}</span>
             <span className={styles.bell} title={`${alertCount} active alert(s)`}>
-              🔔
+              <BellIcon size={18} />
               {alertCount > 0 && <span className={styles.badge}>{alertCount}</span>}
             </span>
             <span className={styles.operator}>{user ? `${user.name} (${user.role})` : "…"}</span>
@@ -475,7 +488,9 @@ export default function Dashboard() {
 
           <Link href="/simulation" className={styles.simCta}>
             <div className={styles.simCtaLeft}>
-              <span className={styles.simCtaIcon}>🗺️</span>
+              <span className={styles.simCtaIcon}>
+                <GridMapIcon size={26} />
+              </span>
               <div>
                 <h2>Yard Simulation</h2>
                 <p>
@@ -489,7 +504,9 @@ export default function Dashboard() {
 
           <Link href="/agent" className={styles.simCta}>
             <div className={styles.simCtaLeft}>
-              <span className={styles.simCtaIcon}>🤖</span>
+              <span className={styles.simCtaIcon}>
+                <AgentNodeIcon size={26} />
+              </span>
               <div>
                 <h2>Container Management Agent</h2>
                 <p>
@@ -625,7 +642,7 @@ export default function Dashboard() {
 
                   {result.planResult.selectedEquipment && (
                     <RecCard
-                      icon={result.planResult.selectedEquipment.equipment.type === "CRANE" ? "🏗️" : "🚚"}
+                      icon={result.planResult.selectedEquipment.equipment.type === "CRANE" ? <CraneIcon /> : <TruckIcon />}
                       label={`Best ${result.planResult.selectedEquipment.equipment.type === "CRANE" ? "Crane" : "Truck"}`}
                       value={result.planResult.selectedEquipment.equipment.id}
                       sub={`Score ${result.planResult.selectedEquipment.score.toFixed(2)}`}
@@ -633,7 +650,7 @@ export default function Dashboard() {
                   )}
                   {result.planResult.route && (
                     <RecCard
-                      icon="⏱️"
+                      icon={<ClockIcon />}
                       label="Estimated Retrieval Time"
                       value={`${Math.round(result.planResult.route.estimatedSeconds)}s`}
                       sub={`${result.planResult.route.distanceMeters.toFixed(0)}m · ${result.planResult.route.path.join(" → ")}`}
@@ -641,7 +658,7 @@ export default function Dashboard() {
                   )}
                   {result.planResult.twin && (
                     <RecCard
-                      icon={result.planResult.twin.recommendedAction === "PROCEED" ? "✅" : "⚠️"}
+                      icon={result.planResult.twin.recommendedAction === "PROCEED" ? <CheckIcon /> : <AlertTriangleIcon />}
                       label="Digital Twin"
                       value={result.planResult.twin.recommendedAction}
                       sub={result.planResult.twin.issues.map((i) => i.message).join("; ") || "No conflicts found"}
@@ -903,7 +920,17 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function RecCard({ icon, label, value, sub }: { icon: string; label: string; value: string; sub: string }) {
+function RecCard({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+}) {
   return (
     <div className={styles.recCard}>
       <span className={styles.recIcon}>{icon}</span>

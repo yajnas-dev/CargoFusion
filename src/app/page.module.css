@@ -8,13 +8,13 @@
 /* Sidebar */
 
 .sidebar {
-  width: 220px;
+  width: 216px;
   flex-shrink: 0;
   background: var(--ops-sidebar-bg);
   border-right: 1px solid var(--ops-border);
   display: flex;
   flex-direction: column;
-  padding: 20px 14px;
+  padding: 18px 12px;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -24,39 +24,49 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 6px 20px;
+  padding: 0 6px 18px;
   border-bottom: 1px solid var(--ops-border);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .brandIcon {
-  font-size: 1.5rem;
+  color: var(--ops-accent);
+  display: flex;
+  flex-shrink: 0;
 }
 
 .brandName {
+  font-family: var(--ops-font-display);
   font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: 0.03em;
+  font-size: 1.05rem;
+  letter-spacing: 0.05em;
 }
 
 .brandSub {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: var(--ops-muted);
   line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   flex: 1;
 }
 
 .navItem {
-  display: block;
-  padding: 9px 12px;
-  border-radius: 7px;
-  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: var(--ops-radius-sm);
+  border-left: 2px solid transparent;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--ops-muted);
 }
 
@@ -66,7 +76,8 @@
 }
 
 .navItemActive {
-  background: var(--ops-accent-dim);
+  background: var(--ops-panel-bg);
+  border-left-color: var(--ops-accent);
   color: var(--ops-text);
   font-weight: 600;
 }
@@ -75,14 +86,15 @@
   display: block;
   width: 100%;
   text-align: left;
-  padding: 9px 12px;
-  border-radius: 7px;
-  font-size: 0.85rem;
-  color: #4a5063;
+  padding: 8px 10px;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
+  color: #3d4552;
   cursor: not-allowed;
   background: none;
   border: none;
-  font-family: inherit;
+  border-left: 2px solid transparent;
 }
 
 .navItemDisabled:hover {
@@ -101,11 +113,12 @@
 
 .navCountDot {
   display: inline-block;
-  margin-left: 6px;
+  margin-left: auto;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-red);
   color: #fff;
+  font-family: var(--ops-font-data);
   font-size: 0.65rem;
   font-weight: 700;
   line-height: 1.5;
@@ -114,22 +127,23 @@
 @keyframes navPulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.55);
+    box-shadow: 0 0 0 0 rgba(62, 207, 142, 0.55);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(63, 185, 80, 0);
+    box-shadow: 0 0 0 4px rgba(62, 207, 142, 0);
   }
 }
 
 .toast {
   position: fixed;
   bottom: 20px;
-  left: 236px;
+  left: 232px;
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
+  border-left: 2px solid var(--ops-accent);
   color: var(--ops-text);
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius-sm);
   font-size: 0.82rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   z-index: 50;
@@ -161,16 +175,21 @@
   align-items: center;
   gap: 6px;
   color: var(--ops-muted);
+  font-family: var(--ops-font-data);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .statusDot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
 }
 
 .statusDotOn {
   background: var(--ops-green);
+  box-shadow: 0 0 6px rgba(62, 207, 142, 0.6);
 }
 
 .statusDotOff {
@@ -179,6 +198,8 @@
 
 .workerLink {
   color: var(--ops-accent);
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
 }
 
 /* Main column */
@@ -194,20 +215,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 28px;
+  padding: 15px 28px;
   border-bottom: 1px solid var(--ops-border);
   background: var(--ops-sidebar-bg);
 }
 
 .topbar h1 {
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .topbarSub {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--ops-muted);
   margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .topbarRight {
@@ -219,11 +243,15 @@
 }
 
 .clock {
+  font-family: var(--ops-font-data);
   font-variant-numeric: tabular-nums;
+  color: var(--ops-text);
 }
 
 .bell {
   position: relative;
+  display: flex;
+  color: var(--ops-muted);
 }
 
 .badge {
@@ -232,84 +260,123 @@
   right: -8px;
   background: var(--ops-red);
   color: #fff;
-  border-radius: 999px;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-data);
   font-size: 0.6rem;
-  padding: 1px 5px;
+  padding: 1px 4px;
   font-weight: 700;
 }
 
 .operator {
   padding: 4px 10px;
   border: 1px solid var(--ops-border);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
+  font-size: 0.78rem;
 }
 
 .signOutButton {
   padding: 4px 10px;
   border: 1px solid var(--ops-border);
-  border-radius: 6px;
+  border-radius: var(--ops-radius-sm);
   background: none;
   color: var(--ops-muted);
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
   cursor: pointer;
 }
 
 .signOutButton:hover {
   background: var(--ops-panel-bg-alt);
   color: var(--ops-text);
+  border-color: var(--ops-accent);
 }
 
 .content {
-  padding: 22px 28px 60px;
+  padding: 20px 28px 60px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
-/* Shift-Start Overview */
+/* Shift-Start Overview — the hero readouts, marked with a targeting-bracket
+   accent (a callback to gantry-camera container-ID recognition overlays)
+   so the numbers a supervisor needs first are unmistakably primary. */
 
 .overviewGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .overviewCard {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 16px 18px;
-  border-radius: 10px;
+  padding: 14px 16px;
+  border-radius: var(--ops-radius-md);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
+  border-left: 3px solid var(--ops-border);
   transition:
     border-color 0.15s ease,
-    transform 0.15s ease;
+    background 0.15s ease;
+}
+
+.overviewCard::before,
+.overviewCard::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.overviewCard::before {
+  top: 5px;
+  right: 7px;
+  border-top: 1.5px solid var(--ops-accent);
+  border-right: 1.5px solid var(--ops-accent);
+}
+
+.overviewCard::after {
+  bottom: 5px;
+  right: 7px;
+  border-bottom: 1.5px solid var(--ops-accent);
+  border-right: 1.5px solid var(--ops-accent);
 }
 
 .overviewCard:hover {
-  border-color: var(--ops-accent);
-  transform: translateY(-1px);
+  background: var(--ops-panel-bg-alt);
+}
+
+.overviewCard:hover::before,
+.overviewCard:hover::after {
+  opacity: 1;
 }
 
 .overviewCardWarn {
-  border-color: rgba(210, 153, 34, 0.5);
+  border-left-color: var(--ops-amber);
 }
 
 .overviewCardAlert {
-  border-color: rgba(229, 72, 77, 0.55);
+  border-left-color: var(--ops-red);
 }
 
 .overviewValue {
+  font-family: var(--ops-font-data);
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .overviewLabel {
-  font-size: 0.72rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.68rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 /* Ask Operations */
@@ -324,7 +391,7 @@
 .opsSampleButton {
   padding: 6px 12px;
   border: 1px solid var(--ops-border);
-  border-radius: 999px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-muted);
   font-size: 0.78rem;
@@ -339,17 +406,19 @@
 .opsExchangeList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   margin-top: 12px;
 }
 
 .opsExchange {
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--ops-radius-sm);
+  border-left: 2px solid var(--ops-accent);
   background: var(--ops-panel-bg-alt);
 }
 
 .opsQuestion {
+  font-family: var(--ops-font-display);
   font-size: 0.8rem;
   font-weight: 600;
   margin-bottom: 4px;
@@ -372,29 +441,32 @@
 .statRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .statCard {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 16px;
-  border-radius: 10px;
+  padding: 13px 15px;
+  border-radius: var(--ops-radius-md);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
 }
 
 .statLabel {
-  font-size: 0.72rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.68rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .statValue {
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .errorText {
@@ -407,7 +479,7 @@
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -417,25 +489,24 @@
   }
 }
 
-/* Simulation CTA */
+/* Simulation / Agent CTAs */
 
 .simCta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 22px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--ops-panel-bg), var(--ops-panel-bg-alt));
+  padding: 16px 20px;
+  border-radius: var(--ops-radius-md);
+  background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
-  transition:
-    border-color 0.15s ease,
-    transform 0.15s ease;
+  border-left: 3px solid var(--ops-border);
+  transition: border-color 0.15s ease;
 }
 
 .simCta:hover {
-  border-color: var(--ops-accent);
-  transform: translateY(-1px);
+  border-left-color: var(--ops-accent);
+  background: var(--ops-panel-bg-alt);
 }
 
 .simCtaLeft {
@@ -446,12 +517,13 @@
 }
 
 .simCtaIcon {
-  font-size: 1.8rem;
-  line-height: 1;
+  color: var(--ops-accent);
+  display: flex;
+  flex-shrink: 0;
 }
 
 .simCtaLeft h2 {
-  font-size: 1rem;
+  font-size: 0.95rem;
   margin-bottom: 3px;
 }
 
@@ -462,7 +534,8 @@
 
 .simCtaArrow {
   flex-shrink: 0;
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--ops-accent);
   white-space: nowrap;
@@ -471,26 +544,30 @@
 .col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .panel {
   border: 1px solid var(--ops-border);
-  border-radius: 12px;
-  padding: 18px 20px;
+  border-radius: var(--ops-radius-md);
+  padding: 17px 19px;
   background: var(--ops-panel-bg);
 }
 
 .panel h2 {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   margin-bottom: 12px;
   letter-spacing: 0.01em;
 }
 
 .panel h3 {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
   margin-bottom: 8px;
   color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 /* Retrieval request form */
@@ -509,10 +586,13 @@
 .batchToggle {
   padding: 5px 10px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-muted);
-  font-size: 0.74rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   cursor: pointer;
 }
 
@@ -535,7 +615,7 @@
 .batchTextarea {
   padding: 9px 11px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-map-bg);
   color: var(--ops-text);
   font-size: 0.85rem;
@@ -556,12 +636,13 @@
   justify-content: space-between;
   gap: 10px;
   padding: 7px 10px;
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   font-size: 0.8rem;
 }
 
 .batchResultQuery {
+  font-family: var(--ops-font-data);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -590,20 +671,27 @@
   flex: 1;
   padding: 9px 11px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-map-bg);
   color: var(--ops-text);
   font-size: 0.88rem;
+}
+
+.textInput:focus,
+.select:focus,
+.batchTextarea:focus {
+  border-color: var(--ops-accent);
 }
 
 .dueByInput {
   flex: 0 0 auto;
   padding: 9px 11px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-map-bg);
   color: var(--ops-text);
-  font-size: 0.82rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.8rem;
 }
 
 .primaryButton,
@@ -612,8 +700,10 @@
 .overrideButton {
   padding: 9px 16px;
   border: none;
-  border-radius: 7px;
-  font-size: 0.85rem;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
   cursor: pointer;
   color: #fff;
   font-weight: 600;
@@ -621,10 +711,12 @@
 
 .primaryButton {
   background: var(--ops-accent);
+  color: #06222a;
 }
 
 .approveButton {
   background: var(--ops-green);
+  color: #042216;
 }
 
 .rejectButton {
@@ -633,12 +725,12 @@
 
 .overrideButton {
   background: var(--ops-amber);
-  color: #1a1200;
+  color: #241800;
 }
 
 .primaryButton:disabled,
 .overrideButton:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -651,8 +743,9 @@
 }
 
 .containerId {
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-size: 1.25rem;
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
@@ -664,20 +757,23 @@
 }
 
 .detailList dt {
+  font-family: var(--ops-font-display);
   color: var(--ops-muted);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .detailList dd {
-  font-weight: 600;
+  font-family: var(--ops-font-data);
+  font-weight: 500;
 }
 
 .rejectedBanner {
   margin-top: 12px;
   padding: 10px;
-  border-radius: 8px;
-  background: rgba(229, 72, 77, 0.15);
+  border-radius: var(--ops-radius-sm);
+  background: rgba(229, 72, 77, 0.14);
   color: var(--ops-red);
   font-weight: 600;
   text-align: center;
@@ -702,9 +798,9 @@
 }
 
 .stepperDot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
   background: var(--ops-border);
   flex-shrink: 0;
 }
@@ -719,9 +815,11 @@
 }
 
 .stepperLabel {
+  font-family: var(--ops-font-display);
   font-size: 0.62rem;
   color: var(--ops-muted);
-  text-transform: capitalize;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   margin-right: 4px;
   white-space: nowrap;
 }
@@ -741,7 +839,7 @@
 
 .explanation {
   font-size: 0.88rem;
-  line-height: 1.5;
+  line-height: 1.55;
   margin-bottom: 14px;
   color: var(--ops-text);
 }
@@ -751,14 +849,16 @@
   gap: 12px;
   align-items: flex-start;
   padding: 12px;
-  border-radius: 9px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .recIcon {
-  font-size: 1.3rem;
-  line-height: 1;
+  color: var(--ops-accent);
+  display: flex;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .recBody {
@@ -769,15 +869,17 @@
 }
 
 .recLabel {
-  font-size: 0.68rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
   color: var(--ops-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .recValue {
-  font-size: 1rem;
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-size: 0.98rem;
+  font-weight: 600;
 }
 
 .recSub {
@@ -788,7 +890,7 @@
 
 .confidenceCard {
   padding: 12px;
-  border-radius: 9px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   margin-bottom: 4px;
 }
@@ -802,22 +904,26 @@
 
 .confidenceHIGH {
   color: var(--ops-green);
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-weight: 600;
 }
 
 .confidenceMEDIUM {
   color: var(--ops-amber);
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-weight: 600;
 }
 
 .confidenceLOW {
   color: var(--ops-red);
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-weight: 600;
 }
 
 .factorList {
   margin-left: 16px;
-  font-size: 0.72rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.7rem;
   color: var(--ops-muted);
 }
 
@@ -852,15 +958,16 @@
 .simButton {
   padding: 8px 14px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   color: var(--ops-text);
-  font-size: 0.82rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
   cursor: pointer;
 }
 
 .simButton:hover {
-  background: var(--ops-accent-dim);
+  border-color: var(--ops-accent);
 }
 
 /* Task table */
@@ -878,18 +985,26 @@
   border-bottom: 1px solid var(--ops-border);
 }
 
+.taskTable td {
+  font-family: var(--ops-font-data);
+}
+
 .taskTable th {
+  font-family: var(--ops-font-display);
   color: var(--ops-muted);
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .statusBadge {
-  padding: 3px 9px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
-  font-size: 0.7rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
 }

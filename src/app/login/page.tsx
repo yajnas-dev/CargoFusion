@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnchorIcon } from "../icons";
 import styles from "./page.module.css";
 
 function LoginForm() {
@@ -37,9 +38,11 @@ function LoginForm() {
     <div className={styles.page}>
       <form className={styles.card} onSubmit={onSubmit}>
         <div className={styles.brand}>
-          <span className={styles.brandIcon}>⚓</span>
+          <span className={styles.brandIcon}>
+            <AnchorIcon size={26} />
+          </span>
           <div>
-            <div className={styles.brandName}>ACSA</div>
+            <div className={styles.brandName}>CARGOFUSION</div>
             <div className={styles.brandSub}>Autonomous Container Search Assistant</div>
           </div>
         </div>

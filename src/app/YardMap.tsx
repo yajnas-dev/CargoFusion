@@ -48,17 +48,27 @@ const SCALE_Y = 340;
 const PAD = 80;
 const STACK_HEIGHT = 54;
 
+// Matches the CSS custom properties in globals.css — hardcoded here since
+// SVG presentation attributes can't reliably resolve var() across browsers.
+const COLOR_RED = "#e5484d";
+const COLOR_AMBER = "#e8a33d";
+const COLOR_GREEN = "#3ecf8e";
+const COLOR_ACCENT = "#2fc7d9";
+const COLOR_BG = "#0a0e13";
+const COLOR_MUTED = "#5c6b7d";
+const COLOR_LINE = "#2a3846";
+
 function congestionColor(weight: number, blocked: boolean): string {
-  if (blocked) return "#e5484d";
-  if (weight >= 2.2) return "#e5484d";
-  if (weight >= 1.5) return "#f5a623";
-  return "#2f855a";
+  if (blocked) return COLOR_RED;
+  if (weight >= 2.2) return COLOR_RED;
+  if (weight >= 1.5) return COLOR_AMBER;
+  return COLOR_GREEN;
 }
 
 function equipmentColor(status: MapEquipment["status"]): string {
-  if (status === "AVAILABLE") return "#3fb950";
-  if (status === "BUSY") return "#f5a623";
-  return "#6e7681";
+  if (status === "AVAILABLE") return COLOR_GREEN;
+  if (status === "BUSY") return COLOR_AMBER;
+  return COLOR_MUTED;
 }
 
 interface EquipmentPlacement {
@@ -201,7 +211,7 @@ export default function YardMap({
                 y1={a.py}
                 x2={b.px}
                 y2={b.py}
-                stroke={highlighted ? "#5b8def" : congestionColor(lane.congestionWeight, lane.blocked)}
+                stroke={highlighted ? COLOR_ACCENT : congestionColor(lane.congestionWeight, lane.blocked)}
                 strokeWidth={highlighted ? 5 : lane.blocked ? 4 : 2}
                 strokeDasharray={lane.blocked ? "7 5" : undefined}
                 className={styles.lane}
@@ -209,9 +219,9 @@ export default function YardMap({
               {/* A distinct barrier glyph so "blocked" never reads as merely "congested" — both otherwise share red. */}
               {lane.blocked && (
                 <g transform={`translate(${mx}, ${my})`} className={styles.barrierIcon}>
-                  <circle r={9} fill="#0d1117" stroke="#e5484d" strokeWidth={2} />
-                  <line x1={-5} y1={-5} x2={5} y2={5} stroke="#e5484d" strokeWidth={2} strokeLinecap="round" />
-                  <line x1={-5} y1={5} x2={5} y2={-5} stroke="#e5484d" strokeWidth={2} strokeLinecap="round" />
+                  <circle r={9} fill={COLOR_BG} stroke={COLOR_RED} strokeWidth={2} />
+                  <line x1={-5} y1={-5} x2={5} y2={5} stroke={COLOR_RED} strokeWidth={2} strokeLinecap="round" />
+                  <line x1={-5} y1={5} x2={5} y2={-5} stroke={COLOR_RED} strokeWidth={2} strokeLinecap="round" />
                 </g>
               )}
               <title>
@@ -235,9 +245,9 @@ export default function YardMap({
               <g key={node.id}>
                 {isGate ? (
                   <g transform={`translate(${px}, ${py})`}>
-                    <rect x={-11} y={-11} width={22} height={22} rx={5} fill="#1c2333" stroke="#5b8def" strokeWidth={1.5} />
-                    <path d="M -5 4 L -5 -4 L 0 -8 L 5 -4 L 5 4" fill="none" stroke="#5b8def" strokeWidth={1.6} strokeLinejoin="round" />
-                    <line x1={-5} y1={4} x2={5} y2={4} stroke="#5b8def" strokeWidth={1.6} />
+                    <rect x={-11} y={-11} width={22} height={22} rx={2} fill={COLOR_BG} stroke={COLOR_ACCENT} strokeWidth={1.5} />
+                    <path d="M -5 4 L -5 -4 L 0 -8 L 5 -4 L 5 4" fill="none" stroke={COLOR_ACCENT} strokeWidth={1.6} strokeLinejoin="round" />
+                    <line x1={-5} y1={4} x2={5} y2={4} stroke={COLOR_ACCENT} strokeWidth={1.6} />
                   </g>
                 ) : (
                   <circle cx={px} cy={py} r={5} className={styles.junction} />
@@ -256,13 +266,13 @@ export default function YardMap({
           const stackY = py + stackDir * 26;
           return (
             <g key={node.id}>
-              <line x1={px} y1={py} x2={px} y2={stackY} stroke="#3a3f4b" strokeWidth={2} />
+              <line x1={px} y1={py} x2={px} y2={stackY} stroke={COLOR_LINE} strokeWidth={2} />
               <rect
                 x={px - 22}
                 y={stackDir === -1 ? stackY - STACK_HEIGHT : stackY}
                 width={44}
                 height={STACK_HEIGHT}
-                rx={6}
+                rx={2}
                 className={styles.blockStack}
                 style={{ opacity: 0.35 + Math.min(count / 130, 1) * 0.55 }}
               />
@@ -308,15 +318,15 @@ export default function YardMap({
                   <line x1={-6} y1={-9} x2={10} y2={-9} stroke={equipmentColor(eq.status)} strokeWidth={2.2} strokeLinecap="round" />
                   <line x1={10} y1={-9} x2={10} y2={-1} stroke={equipmentColor(eq.status)} strokeWidth={1.6} strokeLinecap="round" />
                   <line x1={-7} y1={8} x2={7} y2={8} stroke={equipmentColor(eq.status)} strokeWidth={2.2} strokeLinecap="round" />
-                  <circle cx={10} cy={-1} r={1.8} fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={0.75} />
+                  <circle cx={10} cy={-1} r={1.8} fill={equipmentColor(eq.status)} stroke={COLOR_BG} strokeWidth={0.75} />
                 </g>
               ) : (
                 <g>
                   {/* Yard truck: cab + trailer bed + wheels. */}
-                  <rect x={-10} y={-3} width={7} height={7} rx={1.5} fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={1} />
-                  <rect x={-3} y={-6} width={12} height={10} rx={1.5} fill={equipmentColor(eq.status)} stroke="#0d1117" strokeWidth={1} />
-                  <circle cx={-6} cy={6} r={2.2} fill="#0d1117" stroke={equipmentColor(eq.status)} strokeWidth={1.4} />
-                  <circle cx={5} cy={6} r={2.2} fill="#0d1117" stroke={equipmentColor(eq.status)} strokeWidth={1.4} />
+                  <rect x={-10} y={-3} width={7} height={7} rx={1} fill={equipmentColor(eq.status)} stroke={COLOR_BG} strokeWidth={1} />
+                  <rect x={-3} y={-6} width={12} height={10} rx={1} fill={equipmentColor(eq.status)} stroke={COLOR_BG} strokeWidth={1} />
+                  <circle cx={-6} cy={6} r={2.2} fill={COLOR_BG} stroke={equipmentColor(eq.status)} strokeWidth={1.4} />
+                  <circle cx={5} cy={6} r={2.2} fill={COLOR_BG} stroke={equipmentColor(eq.status)} strokeWidth={1.4} />
                 </g>
               )}
               <title>
@@ -329,23 +339,23 @@ export default function YardMap({
       </svg>
       <div className={styles.legend}>
         <span>
-          <i className={styles.legendDot} style={{ background: "#3fb950" }} /> Available
+          <i className={styles.legendDot} style={{ background: COLOR_GREEN }} /> Available
         </span>
         <span>
-          <i className={styles.legendDot} style={{ background: "#f5a623" }} /> Busy
+          <i className={styles.legendDot} style={{ background: COLOR_AMBER }} /> Busy
         </span>
         <span>
-          <i className={styles.legendDot} style={{ background: "#6e7681" }} /> Offline
+          <i className={styles.legendDot} style={{ background: COLOR_MUTED }} /> Offline
         </span>
         <span>
-          <i className={styles.legendLine} style={{ background: "#e5484d" }} /> High congestion
+          <i className={styles.legendLine} style={{ background: COLOR_RED }} /> High congestion
         </span>
         <span>
           <i className={styles.legendBarrier} /> Blocked{onLaneToggle ? " (click a lane to toggle)" : ""}
         </span>
         {routePoints.length > 1 && (
           <span>
-            <i className={styles.legendLine} style={{ background: "#5b8def" }} /> Planned route
+            <i className={styles.legendLine} style={{ background: COLOR_ACCENT }} /> Planned route
           </span>
         )}
       </div>
@@ -389,12 +399,12 @@ function RouteMarker({ points }: { points: { px: number; py: number }[] }) {
       <polyline
         points={points.map((p) => `${p.px},${p.py}`).join(" ")}
         fill="none"
-        stroke="#5b8def"
+        stroke={COLOR_ACCENT}
         strokeWidth={2}
         strokeDasharray="4 4"
         opacity={0.5}
       />
-      <circle cx={x} cy={y} r={6} fill="#5b8def" stroke="#0d1117" strokeWidth={1.5} />
+      <circle cx={x} cy={y} r={6} fill={COLOR_ACCENT} stroke={COLOR_BG} strokeWidth={1.5} />
     </>
   );
 }

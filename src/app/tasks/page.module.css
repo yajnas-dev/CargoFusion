@@ -10,7 +10,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 16px 28px;
+  padding: 15px 28px;
   border-bottom: 1px solid var(--ops-border);
   background: var(--ops-sidebar-bg);
 }
@@ -22,12 +22,14 @@
 }
 
 .topbarLeft h1 {
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .backLink {
-  font-size: 0.85rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
   color: var(--ops-accent);
   white-space: nowrap;
 }
@@ -39,10 +41,11 @@
 }
 
 .countBadge {
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 2px 9px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
+  font-family: var(--ops-font-data);
   font-size: 0.75rem;
   color: var(--ops-muted);
 }
@@ -62,10 +65,11 @@
 .bulkButton {
   padding: 8px 14px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-green);
-  color: #fff;
-  font-size: 0.82rem;
+  color: #042216;
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -83,10 +87,10 @@
 }
 
 .body {
-  padding: 22px 28px 60px;
+  padding: 20px 28px 60px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .emptyState {
@@ -94,22 +98,23 @@
   font-size: 0.85rem;
   padding: 30px;
   border: 1px dashed var(--ops-border);
-  border-radius: 10px;
+  border-radius: var(--ops-radius-md);
   text-align: center;
 }
 
 .card {
-  padding: 16px 18px;
-  border-radius: 12px;
+  padding: 15px 17px;
+  border-radius: var(--ops-radius-md);
   background: var(--ops-panel-bg);
   border: 1px solid var(--ops-border);
+  border-left: 3px solid var(--ops-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .cardAging {
-  border-color: rgba(210, 153, 34, 0.4);
+  border-left-color: var(--ops-amber);
 }
 
 .cardHeader {
@@ -127,32 +132,35 @@
 }
 
 .containerId {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-size: 1.02rem;
+  font-weight: 600;
 }
 
 .priorityBadge {
-  padding: 2px 9px;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   border: 1px solid var(--ops-border);
 }
 
 .priorityURGENT {
-  color: #fff;
+  color: #06131a;
   background: var(--ops-red);
   border-color: var(--ops-red);
 }
 
 .priorityHIGH {
   color: var(--ops-amber);
-  border-color: rgba(210, 153, 34, 0.4);
+  border-color: rgba(232, 163, 61, 0.4);
 }
 
 .priorityMEDIUM {
   color: var(--ops-accent);
-  border-color: rgba(88, 143, 255, 0.35);
+  border-color: rgba(47, 199, 217, 0.35);
 }
 
 .priorityLOW {
@@ -160,25 +168,29 @@
 }
 
 .statusTag {
-  padding: 2px 9px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-panel-bg-alt);
   border: 1px solid var(--ops-border);
-  font-size: 0.68rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
   color: var(--ops-muted);
 }
 
 .agingTag {
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: rgba(210, 153, 34, 0.15);
+  padding: 2px 8px;
+  border-radius: var(--ops-radius-sm);
+  background: rgba(232, 163, 61, 0.15);
   color: var(--ops-amber);
-  font-size: 0.68rem;
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
   font-weight: 600;
 }
 
 .ageText {
-  font-size: 0.78rem;
+  font-family: var(--ops-font-data);
+  font-size: 0.76rem;
   color: var(--ops-muted);
   white-space: nowrap;
 }
@@ -197,20 +209,24 @@
 
 .confidenceHIGH {
   color: var(--ops-green);
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-weight: 600;
 }
 
 .confidenceMEDIUM {
   color: var(--ops-amber);
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-weight: 600;
 }
 
 .confidenceLOW {
   color: var(--ops-red);
-  font-weight: 700;
+  font-family: var(--ops-font-data);
+  font-weight: 600;
 }
 
 .equipmentTag {
+  font-family: var(--ops-font-data);
   color: var(--ops-muted);
 }
 
@@ -231,8 +247,9 @@
 .confirmOverrideButton {
   padding: 7px 14px;
   border: none;
-  border-radius: 7px;
-  font-size: 0.82rem;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   color: #fff;
@@ -240,6 +257,7 @@
 
 .approveButton {
   background: var(--ops-green);
+  color: #042216;
 }
 
 .rejectButton {
@@ -249,7 +267,7 @@
 .overrideButton,
 .confirmOverrideButton {
   background: var(--ops-amber);
-  color: #1a1200;
+  color: #241800;
 }
 
 .confirmOverrideButton:disabled {
@@ -270,8 +288,13 @@
 .textInput {
   padding: 7px 10px;
   border: 1px solid var(--ops-border);
-  border-radius: 7px;
+  border-radius: var(--ops-radius-sm);
   background: var(--ops-map-bg);
   color: var(--ops-text);
   font-size: 0.82rem;
+}
+
+.select:focus,
+.textInput:focus {
+  border-color: var(--ops-accent);
 }
