@@ -56,3 +56,12 @@ function requireApiKey(): string {
   }
   return key;
 }
+
+/** Shared "no key configured -> degrade gracefully" construction used by every LLM call site. */
+export function createModelOrNull(): GeminiClient | null {
+  try {
+    return new GeminiClient();
+  } catch {
+    return null;
+  }
+}

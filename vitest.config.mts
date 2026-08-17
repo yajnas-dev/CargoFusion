@@ -15,5 +15,12 @@ export default defineConfig({
     // concurrent test files racing against the same rows produce
     // order-dependent false failures. Run files serially instead.
     fileParallelism: false,
+    // Explicit default-plus-.claude exclude: `vitest run <path>` (a bare
+    // positional filter, as opposed to a config-default `vitest run` with
+    // no args) globs from the filesystem root and picks up stray copies of
+    // this same test tree under .claude/worktrees/ (scratch checkouts left
+    // by prior background-agent sessions), producing spurious failures
+    // against a stale codebase sharing this repo's dev.db.
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.{idea,git,cache,output,temp}/**", ".claude/**"],
   },
 });

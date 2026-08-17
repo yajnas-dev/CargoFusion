@@ -1,8 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import YardMap, { type MapEquipment, type MapLane, type MapNode } from "./YardMap";
+import { useRouter } from "next/navigation";
+import type { MapEquipment, MapLane, MapNode } from "./YardMap";
+import { useLiveEvents } from "./useLiveEvents";
+import { TOPICS } from "@/events/topics";
+import { formatDuration } from "@/domain/format";
+import {
+  AnchorIcon,
+  BellIcon,
+  GridMapIcon,
+  AgentNodeIcon,
+  CraneIcon,
+  TruckIcon,
+  CheckIcon,
+  AlertTriangleIcon,
+  ClockIcon,
+} from "./icons";
 import styles from "./page.module.css";
 
 type Priority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -56,6 +71,7 @@ interface PlanResult {
   containerMatches: { container: { id: string }; confidence: number; matchType: string }[];
   equipmentCandidates?: EquipmentCandidate[];
   selectedEquipment?: EquipmentCandidate;
+  craneCandidates?: EquipmentCandidate[];
   route?: { path: string[]; distanceMeters: number; estimatedSeconds: number };
   twin?: { valid: boolean; recommendedAction: string; issues: { type: string; message: string }[] };
 }
@@ -74,6 +90,15 @@ interface SubmitResponse {
   confidence?: ConfidenceAssessment;
 }
 
+interface BatchResultItem {
+  rawRequest: string;
+  response?: {
+    planResult: PlanResult;
+    task?: { id: string; status: TaskStatus };
+  };
+  error?: string;
+}
+
 interface TaskRow {
   id: string;
   status: TaskStatus;
@@ -85,7 +110,23 @@ interface TaskRow {
   recommendations: { confidenceLevel: string; explanation: string }[];
 }
 
-const REQUESTED_BY = "operator";
+interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  role: "OPERATOR" | "SUPERVISOR" | "WORKER";
+  workerId?: string;
+}
+
+interface AgentAlertSummary {
+  status: "OPEN" | "ACKNOWLEDGED" | "APPLIED" | "DISMISSED";
+  severity: Priority;
+  type: string;
+}
+
+interface WorkerSummary {
+  status: "AVAILABLE" | "BUSY" | "OFF_SHIFT";
+}
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -97,41 +138,74 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-const DISABLED_NAV_ITEMS = ["Equipment", "Trucks", "Alerts", "Analytics", "Settings"];
+const DISABLED_NAV_ITEMS = ["Alerts"];
 
 const NAV_LINKS: { label: string; targetId: string }[] = [
   { label: "Dashboard", targetId: "top" },
   { label: "Container Search", targetId: "search-card" },
-  { label: "Yard Map", targetId: "yard-map-card" },
   { label: "Operations", targetId: "operations-card" },
-  { label: "Simulation", targetId: "simulation-panel" },
 ];
 
 export default function Dashboard() {
+  const router = useRouter();
   const [yard, setYard] = useState<YardSummary | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [workers, setWorkers] = useState<WorkerSummary[]>([]);
+  const [agentAlerts, setAgentAlerts] = useState<AgentAlertSummary[]>([]);
+  const [openIncidentCount, setOpenIncidentCount] = useState(0);
   const [requestText, setRequestText] = useState("");
+  const [dueBy, setDueBy] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchText, setBatchText] = useState("");
+  const [batchResults, setBatchResults] = useState<BatchResultItem[] | null>(null);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [overrideEquipmentId, setOverrideEquipmentId] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
   const [simRunning, setSimRunning] = useState(false);
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [openAgentAlertCount, setOpenAgentAlertCount] = useState(0);
   const [apiHealthy, setApiHealthy] = useState(true);
   const [clock, setClock] = useState("");
   const [activeNavId, setActiveNavId] = useState("top");
   const [toast, setToast] = useState<string | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  useEffect(() => {
+    api<{ user: SessionUser }>("/api/auth/me")
+      .then((data) => setUser(data.user))
+      .catch(() => setUser(null));
+  }, []);
+
+  async function logout() {
+    await api("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   const refresh = useCallback(async () => {
     try {
-      const [yardData, taskData, simStatus] = await Promise.all([
+      const [yardData, taskData, simStatus, agentStatus, alertData, workerData, incidentData] = await Promise.all([
         api<YardSummary>("/api/yard"),
         api<{ tasks: TaskRow[] }>("/api/tasks"),
         api<{ running: boolean }>("/api/simulation/status"),
+        api<{ running: boolean }>("/api/agent/status"),
+        api<{ alerts: AgentAlertSummary[] }>("/api/agent/alerts"),
+        api<{ workers: WorkerSummary[] }>("/api/workers"),
+        api<{ incidents: { status: string }[] }>("/api/incidents?status=OPEN"),
       ]);
       setYard(yardData);
       setTasks(taskData.tasks);
       setSimRunning(simStatus.running);
+      setAgentRunning(agentStatus.running);
+      setAgentAlerts(alertData.alerts);
+      setOpenAgentAlertCount(
+        alertData.alerts.filter((a) => a.status === "OPEN" || a.status === "ACKNOWLEDGED").length,
+      );
+      setWorkers(workerData.workers);
+      setOpenIncidentCount(incidentData.incidents.length);
       setApiHealthy(true);
     } catch {
       setApiHealthy(false);
@@ -140,12 +214,29 @@ export default function Dashboard() {
 
   useEffect(() => {
     const timeout = setTimeout(refresh, 0); // deferred so the initial load doesn't setState synchronously in the effect
-    const interval = setInterval(refresh, 8000);
+    // 30s fallback poll in case the SSE stream (below) is silently disconnected.
+    const interval = setInterval(refresh, 30000);
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
   }, [refresh]);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedRefresh = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(refresh, 300);
+  }, [refresh]);
+
+  useLiveEvents({
+    [TOPICS.TASK_CHANGED]: debouncedRefresh,
+    [TOPICS.RECOMMENDATION_CREATED]: debouncedRefresh,
+    [TOPICS.YARD_LANE_CHANGED]: debouncedRefresh,
+    [TOPICS.YARD_EQUIPMENT_CHANGED]: debouncedRefresh,
+    [TOPICS.AGENT_ALERT_RAISED]: debouncedRefresh,
+    [TOPICS.AGENT_ALERT_RESOLVED]: debouncedRefresh,
+    [TOPICS.INCIDENT_CHANGED]: debouncedRefresh,
+  });
 
   useEffect(() => {
     const update = () => setClock(new Date().toLocaleTimeString());
@@ -163,14 +254,40 @@ export default function Dashboard() {
     try {
       const data = await api<SubmitResponse>("/api/retrieval-requests", {
         method: "POST",
-        body: JSON.stringify({ request: requestText, requestedBy: REQUESTED_BY }),
+        body: JSON.stringify({ request: requestText, dueBy: dueBy ? new Date(dueBy).toISOString() : undefined }),
       });
       setResult(data);
+      setDueBy("");
       await refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function submitBatch(e: React.FormEvent) {
+    e.preventDefault();
+    const lines = batchText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    setBatchSubmitting(true);
+    setError(null);
+    setBatchResults(null);
+    try {
+      const data = await api<{ items: BatchResultItem[] }>("/api/retrieval-requests/batch", {
+        method: "POST",
+        body: JSON.stringify({ requests: lines }),
+      });
+      setBatchResults(data.items);
+      setBatchText("");
+      await refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBatchSubmitting(false);
     }
   }
 
@@ -198,13 +315,27 @@ export default function Dashboard() {
   const taskId = result?.task?.id;
   const currentTask = tasks.find((t) => t.id === taskId);
   const activeStatus = currentTask?.status ?? result?.task?.status;
-  const alertCount = yard ? yard.lanes.filter((l) => l.blocked).length + (result?.planResult.twin?.issues.length ?? 0) : 0;
+  const blockedLaneCount = yard ? yard.lanes.filter((l) => l.blocked).length : 0;
+  const alertCount = blockedLaneCount + openAgentAlertCount + (result?.planResult.twin?.issues.length ?? 0);
+
+  // Shift-Start Overview: everything that needs a decision right now, derived
+  // from data already being polled — no extra endpoints.
+  const pendingApprovalCount = tasks.filter((t) => t.status === "REQUESTED" || t.status === "PLANNED").length;
+  const openAlerts = agentAlerts.filter((a) => a.status === "OPEN" || a.status === "ACKNOWLEDGED");
+  const agingTaskAlertCount = openAlerts.filter(
+    (a) => a.type === "AGING_TASK" || a.type === "URGENT_CONTAINER_UNACTIONED",
+  ).length;
+  const openBySeverity = (severity: Priority) => openAlerts.filter((a) => a.severity === severity).length;
+  const equipmentAvailableCount = yard ? yard.equipment.filter((e) => e.status === "AVAILABLE").length : 0;
+  const workersAvailableCount = workers.filter((w) => w.status === "AVAILABLE").length;
 
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <span className={styles.brandIcon}>⚓</span>
+          <span className={styles.brandIcon}>
+            <AnchorIcon size={22} />
+          </span>
           <div>
             <div className={styles.brandName}>ACSA</div>
             <div className={styles.brandSub}>Autonomous Container Search Assistant</div>
@@ -221,6 +352,40 @@ export default function Dashboard() {
               {link.label}
             </a>
           ))}
+          <Link href="/tasks" className={styles.navItem}>
+            Approval Queue
+            {pendingApprovalCount > 0 && <span className={styles.navCountDot}>{pendingApprovalCount}</span>}
+          </Link>
+          <Link href="/equipment" className={styles.navItem}>
+            Equipment
+          </Link>
+          <Link href="/workers" className={styles.navItem}>
+            Workers
+          </Link>
+          <Link href="/audit" className={styles.navItem}>
+            Audit Trail
+          </Link>
+          <Link href="/incidents" className={styles.navItem}>
+            Incidents
+            {openIncidentCount > 0 && <span className={styles.navCountDot}>{openIncidentCount}</span>}
+          </Link>
+          <Link href="/analytics" className={styles.navItem}>
+            Analytics
+          </Link>
+          <Link href="/history" className={styles.navItem}>
+            Shift Timeline
+          </Link>
+          <Link href="/settings" className={styles.navItem}>
+            Settings
+          </Link>
+          <Link href="/simulation" className={styles.navItem}>
+            Simulation
+            {simRunning && <span className={styles.navLiveDot} />}
+          </Link>
+          <Link href="/agent" className={styles.navItem}>
+            Agent
+            {agentRunning && <span className={styles.navLiveDot} />}
+          </Link>
           {DISABLED_NAV_ITEMS.map((item) => (
             <button
               key={item}
@@ -249,19 +414,61 @@ export default function Dashboard() {
         <header className={styles.topbar}>
           <div>
             <h1>Container Search Assistant</h1>
-            <p className={styles.topbarSub}>CargoFusion Terminal — prototype demo</p>
+            <p className={styles.topbarSub}>CargoFusion Terminal Operations</p>
           </div>
           <div className={styles.topbarRight}>
             <span className={styles.clock}>{clock}</span>
             <span className={styles.bell} title={`${alertCount} active alert(s)`}>
-              🔔
+              <BellIcon size={18} />
               {alertCount > 0 && <span className={styles.badge}>{alertCount}</span>}
             </span>
-            <span className={styles.operator}>Operator</span>
+            <span className={styles.operator}>{user ? `${user.name} (${user.role})` : "…"}</span>
+            <button type="button" className={styles.signOutButton} onClick={logout}>
+              Sign out
+            </button>
           </div>
         </header>
 
         <div className={styles.content}>
+          <div className={styles.overviewGrid}>
+            <Link href="/tasks" className={`${styles.overviewCard} ${pendingApprovalCount > 0 ? styles.overviewCardAlert : ""}`}>
+              <span className={styles.overviewValue}>{pendingApprovalCount}</span>
+              <span className={styles.overviewLabel}>Pending approvals</span>
+            </Link>
+            <Link href="/agent" className={`${styles.overviewCard} ${agingTaskAlertCount > 0 ? styles.overviewCardWarn : ""}`}>
+              <span className={styles.overviewValue}>{agingTaskAlertCount}</span>
+              <span className={styles.overviewLabel}>Aging / unactioned</span>
+            </Link>
+            <Link href="/agent" className={`${styles.overviewCard} ${openBySeverity("URGENT") > 0 ? styles.overviewCardAlert : ""}`}>
+              <span className={styles.overviewValue}>
+                {openBySeverity("URGENT")} / {openBySeverity("HIGH")}
+              </span>
+              <span className={styles.overviewLabel}>Open alerts (urgent / high)</span>
+            </Link>
+            <Link href="/simulation" className={`${styles.overviewCard} ${blockedLaneCount > 0 ? styles.overviewCardWarn : ""}`}>
+              <span className={styles.overviewValue}>{blockedLaneCount}</span>
+              <span className={styles.overviewLabel}>Blocked lanes</span>
+            </Link>
+            <Link href="/incidents" className={`${styles.overviewCard} ${openIncidentCount > 0 ? styles.overviewCardAlert : ""}`}>
+              <span className={styles.overviewValue}>{openIncidentCount}</span>
+              <span className={styles.overviewLabel}>Open incidents</span>
+            </Link>
+            <Link href="/equipment" className={styles.overviewCard}>
+              <span className={styles.overviewValue}>
+                {equipmentAvailableCount} / {yard?.equipment.length ?? 0}
+              </span>
+              <span className={styles.overviewLabel}>Equipment available</span>
+            </Link>
+            <Link href="/workers" className={styles.overviewCard}>
+              <span className={styles.overviewValue}>
+                {workersAvailableCount} / {workers.length}
+              </span>
+              <span className={styles.overviewLabel}>Workers available</span>
+            </Link>
+          </div>
+
+          <OpsAssistantPanel />
+
           {yard && (
             <div className={styles.statRow}>
               <StatCard label="Total containers" value={yard.totalContainers.toLocaleString()} />
@@ -281,22 +488,115 @@ export default function Dashboard() {
 
           {error && <p className={styles.errorText}>{error}</p>}
 
-          <div className={styles.grid3}>
+          <Link href="/simulation" className={styles.simCta}>
+            <div className={styles.simCtaLeft}>
+              <span className={styles.simCtaIcon}>
+                <GridMapIcon size={26} />
+              </span>
+              <div>
+                <h2>Yard Simulation</h2>
+                <p>
+                  {simRunning ? "Live background simulation running" : "Static — start the simulator for live drift"}
+                  {yard ? ` · ${blockedLaneCount} lane${blockedLaneCount === 1 ? "" : "s"} blocked` : ""}
+                </p>
+              </div>
+            </div>
+            <span className={styles.simCtaArrow}>Open Full Simulation →</span>
+          </Link>
+
+          <Link href="/agent" className={styles.simCta}>
+            <div className={styles.simCtaLeft}>
+              <span className={styles.simCtaIcon}>
+                <AgentNodeIcon size={26} />
+              </span>
+              <div>
+                <h2>Container Management Agent</h2>
+                <p>
+                  {agentRunning ? "Watching yard/task state" : "Stopped — start it to watch for issues"}
+                  {` · ${openAgentAlertCount} open alert${openAgentAlertCount === 1 ? "" : "s"}`}
+                </p>
+              </div>
+            </div>
+            <span className={styles.simCtaArrow}>Open Agent →</span>
+          </Link>
+
+          <div className={styles.grid2}>
             <div className={styles.col} id="search-card">
               <div className={styles.panel}>
-                <h2>Retrieval Request</h2>
-                <form onSubmit={submitRequest} className={styles.requestForm}>
-                  <input
-                    type="text"
-                    placeholder='e.g. "MSKU1234567" or "Get it out as quickly as possible"'
-                    value={requestText}
-                    onChange={(e) => setRequestText(e.target.value)}
-                    className={styles.textInput}
-                  />
-                  <button type="submit" disabled={submitting} className={styles.primaryButton}>
-                    {submitting ? "Planning…" : "Search"}
+                <div className={styles.panelHeaderRow}>
+                  <h2>Retrieval Request</h2>
+                  <button
+                    type="button"
+                    className={styles.batchToggle}
+                    onClick={() => {
+                      setBatchMode((v) => !v);
+                      setBatchResults(null);
+                    }}
+                  >
+                    {batchMode ? "Single request" : "Batch (multiple)"}
                   </button>
-                </form>
+                </div>
+
+                {!batchMode && (
+                  <form onSubmit={submitRequest} className={styles.requestForm}>
+                    <input
+                      type="text"
+                      aria-label="Retrieval request"
+                      placeholder='e.g. "MSKU1234567" or "Get it out as quickly as possible"'
+                      value={requestText}
+                      onChange={(e) => setRequestText(e.target.value)}
+                      className={styles.textInput}
+                    />
+                    <input
+                      type="datetime-local"
+                      aria-label="Due by (optional)"
+                      title="Due by (optional)"
+                      value={dueBy}
+                      onChange={(e) => setDueBy(e.target.value)}
+                      className={styles.dueByInput}
+                    />
+                    <button type="submit" disabled={submitting} className={styles.primaryButton}>
+                      {submitting ? "Planning…" : "Search"}
+                    </button>
+                  </form>
+                )}
+
+                {batchMode && (
+                  <form onSubmit={submitBatch} className={styles.batchForm}>
+                    <textarea
+                      aria-label="Batch retrieval requests, one per line"
+                      placeholder={"One request per line, e.g.\nMSKU1234567\nTCLU7654321 urgently\nHBBU9998887"}
+                      value={batchText}
+                      onChange={(e) => setBatchText(e.target.value)}
+                      className={styles.batchTextarea}
+                      rows={4}
+                    />
+                    <button type="submit" disabled={batchSubmitting || !batchText.trim()} className={styles.primaryButton}>
+                      {batchSubmitting ? "Submitting…" : "Submit batch"}
+                    </button>
+                    {batchResults && (
+                      <div className={styles.batchResults}>
+                        {batchResults.map((item, i) => (
+                          <div key={i} className={styles.batchResultRow}>
+                            <span className={styles.batchResultQuery}>{item.rawRequest}</span>
+                            <span
+                              className={
+                                item.error || !item.response?.task
+                                  ? styles.batchResultBad
+                                  : styles.batchResultGood
+                              }
+                            >
+                              {item.error ?? (item.response?.task ? `${item.response.task.status}` : "no task created")}
+                            </span>
+                          </div>
+                        ))}
+                        <Link href="/tasks" className={styles.batchQueueLink}>
+                          Review in Approval Queue →
+                        </Link>
+                      </div>
+                    )}
+                  </form>
+                )}
               </div>
 
               {result?.planResult.container && (
@@ -336,24 +636,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className={styles.col} id="yard-map-card">
-              <div className={styles.panel}>
-                <h2>Yard Map (Live)</h2>
-                {yard ? (
-                  <YardMap
-                    nodes={yard.nodes}
-                    lanes={yard.lanes}
-                    equipment={yard.equipment}
-                    containerCountsByBlock={yard.containerCountsByBlock}
-                    highlightPath={result?.planResult.route?.path}
-                    live={simRunning}
-                  />
-                ) : (
-                  <p>Loading…</p>
-                )}
-              </div>
-            </div>
-
             <div className={styles.col} id="operations-card">
               {result && (
                 <div className={styles.panel}>
@@ -362,7 +644,7 @@ export default function Dashboard() {
 
                   {result.planResult.selectedEquipment && (
                     <RecCard
-                      icon={result.planResult.selectedEquipment.equipment.type === "CRANE" ? "🏗️" : "🚚"}
+                      icon={result.planResult.selectedEquipment.equipment.type === "CRANE" ? <CraneIcon /> : <TruckIcon />}
                       label={`Best ${result.planResult.selectedEquipment.equipment.type === "CRANE" ? "Crane" : "Truck"}`}
                       value={result.planResult.selectedEquipment.equipment.id}
                       sub={`Score ${result.planResult.selectedEquipment.score.toFixed(2)}`}
@@ -370,15 +652,35 @@ export default function Dashboard() {
                   )}
                   {result.planResult.route && (
                     <RecCard
-                      icon="⏱️"
+                      icon={<ClockIcon />}
                       label="Estimated Retrieval Time"
-                      value={`${Math.round(result.planResult.route.estimatedSeconds)}s`}
+                      value={formatDuration(result.planResult.route.estimatedSeconds)}
                       sub={`${result.planResult.route.distanceMeters.toFixed(0)}m · ${result.planResult.route.path.join(" → ")}`}
                     />
                   )}
+                  {result.planResult.craneCandidates &&
+                    (result.planResult.craneCandidates.length > 0 ? (
+                      <RecCard
+                        icon={<CraneIcon />}
+                        label="Crane for This Run"
+                        value={result.planResult.craneCandidates[0].equipment.id}
+                        sub={
+                          result.planResult.craneCandidates.length > 1
+                            ? `+${result.planResult.craneCandidates.length - 1} other crane(s) available · ${result.planResult.craneCandidates[0].factors.distanceMeters.toFixed(0)}m from block`
+                            : `${result.planResult.craneCandidates[0].factors.distanceMeters.toFixed(0)}m from block`
+                        }
+                      />
+                    ) : (
+                      <RecCard
+                        icon={<AlertTriangleIcon />}
+                        label="Crane for This Run"
+                        value="None available"
+                        sub="No crane is currently free to service this block"
+                      />
+                    ))}
                   {result.planResult.twin && (
                     <RecCard
-                      icon={result.planResult.twin.recommendedAction === "PROCEED" ? "✅" : "⚠️"}
+                      icon={result.planResult.twin.recommendedAction === "PROCEED" ? <CheckIcon /> : <AlertTriangleIcon />}
                       label="Digital Twin"
                       value={result.planResult.twin.recommendedAction}
                       sub={result.planResult.twin.issues.map((i) => i.message).join("; ") || "No conflicts found"}
@@ -408,7 +710,7 @@ export default function Dashboard() {
                       <div className={styles.buttonRow}>
                         <button
                           className={styles.approveButton}
-                          onClick={() => runAction(`/api/tasks/${taskId}/approve`, { actor: "supervisor" })}
+                          onClick={() => runAction(`/api/tasks/${taskId}/approve`, {})}
                         >
                           Approve
                         </button>
@@ -416,7 +718,6 @@ export default function Dashboard() {
                           className={styles.rejectButton}
                           onClick={() =>
                             runAction(`/api/tasks/${taskId}/reject`, {
-                              actor: "supervisor",
                               reason: "Rejected by supervisor",
                             })
                           }
@@ -427,6 +728,7 @@ export default function Dashboard() {
                       {result.planResult.equipmentCandidates && result.planResult.equipmentCandidates.length > 1 && (
                         <div className={styles.overrideForm}>
                           <select
+                            aria-label="Alternate equipment"
                             value={overrideEquipmentId}
                             onChange={(e) => setOverrideEquipmentId(e.target.value)}
                             className={styles.select}
@@ -442,6 +744,7 @@ export default function Dashboard() {
                           </select>
                           <input
                             type="text"
+                            aria-label="Reason for override"
                             placeholder="Reason for override"
                             value={overrideReason}
                             onChange={(e) => setOverrideReason(e.target.value)}
@@ -452,7 +755,6 @@ export default function Dashboard() {
                             disabled={!overrideEquipmentId || !overrideReason}
                             onClick={() =>
                               runAction(`/api/tasks/${taskId}/override`, {
-                                actor: "supervisor",
                                 reason: overrideReason,
                                 equipmentId: overrideEquipmentId,
                               })
@@ -469,7 +771,7 @@ export default function Dashboard() {
                     <div className={styles.approvalPanel}>
                       <button
                         className={styles.primaryButton}
-                        onClick={() => runAction(`/api/tasks/${taskId}/dispatch`, { actor: "supervisor" })}
+                        onClick={() => runAction(`/api/tasks/${taskId}/dispatch`, {})}
                       >
                         Dispatch to Worker
                       </button>
@@ -483,7 +785,7 @@ export default function Dashboard() {
                       </p>
                       <button
                         className={styles.approveButton}
-                        onClick={() => runAction(`/api/tasks/${taskId}/complete`, { actor: "supervisor" })}
+                        onClick={() => runAction(`/api/tasks/${taskId}/complete`, {})}
                       >
                         Mark Completed
                       </button>
@@ -491,40 +793,6 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className={styles.panel} id="simulation-panel">
-            <h2>Simulation Controls</h2>
-            <p className={styles.simDescription}>
-              Trigger yard events on demand, or start the background simulator for continuous ambient activity
-              (equipment moves, congestion drifts, occasional RFID checkpoints and availability changes).
-            </p>
-            <div className={styles.simButtonRow}>
-              <button
-                className={simRunning ? styles.rejectButton : styles.approveButton}
-                onClick={() => runAction(simRunning ? "/api/simulation/stop" : "/api/simulation/start")}
-              >
-                {simRunning ? "Stop Background Simulation" : "Start Background Simulation"}
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/congestion", {})}>
-                Simulate Congestion Spike
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/block-lane", {})}>
-                Block Random Lane
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/unblock-lanes")}>
-                Unblock All Lanes
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/move-equipment", {})}>
-                Move Random Equipment
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/rfid-event", {})}>
-                Trigger RFID Event
-              </button>
-              <button className={styles.simButton} onClick={() => runAction("/api/simulation/equipment-status", {})}>
-                Flap Equipment Availability
-              </button>
             </div>
           </div>
 
@@ -559,7 +827,7 @@ export default function Dashboard() {
                       {t.status === "RETRIEVED" && (
                         <button
                           className={styles.simButton}
-                          onClick={() => runAction(`/api/tasks/${t.id}/complete`, { actor: "supervisor" })}
+                          onClick={() => runAction(`/api/tasks/${t.id}/complete`, {})}
                         >
                           Mark Completed
                         </button>
@@ -581,6 +849,90 @@ export default function Dashboard() {
   );
 }
 
+interface OpsExchange {
+  question: string;
+  answer: string;
+  usedFallback: boolean;
+}
+
+const SAMPLE_QUESTIONS = [
+  "What's happening in the yard right now?",
+  "What should we prioritize?",
+  "Are there any bottlenecks?",
+];
+
+function OpsAssistantPanel() {
+  const [question, setQuestion] = useState("");
+  const [exchanges, setExchanges] = useState<OpsExchange[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed || asking) return;
+    setAsking(true);
+    setError(null);
+    try {
+      const data = await api<{ answer: string; usedFallback: boolean }>("/api/ops-assistant/ask", {
+        method: "POST",
+        body: JSON.stringify({ question: trimmed }),
+      });
+      setExchanges((prev) => [{ question: trimmed, answer: data.answer, usedFallback: data.usedFallback }, ...prev].slice(0, 5));
+      setQuestion("");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  return (
+    <div className={styles.panel}>
+      <h2>Ask Operations</h2>
+      <form
+        className={styles.requestForm}
+        onSubmit={(e) => {
+          e.preventDefault();
+          ask(question);
+        }}
+      >
+        <input
+          type="text"
+          aria-label="Ask a question about current operations"
+          placeholder="e.g. what's happening in the yard right now?"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          className={styles.textInput}
+        />
+        <button type="submit" disabled={asking || !question.trim()} className={styles.primaryButton}>
+          {asking ? "Thinking…" : "Ask"}
+        </button>
+      </form>
+      {exchanges.length === 0 && !error && (
+        <div className={styles.opsSamples}>
+          {SAMPLE_QUESTIONS.map((q) => (
+            <button key={q} type="button" className={styles.opsSampleButton} onClick={() => ask(q)}>
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+      {error && <p className={styles.errorText}>{error}</p>}
+      <div className={styles.opsExchangeList}>
+        {exchanges.map((ex, i) => (
+          <div key={i} className={styles.opsExchange}>
+            <div className={styles.opsQuestion}>{ex.question}</div>
+            <div className={styles.opsAnswer}>
+              {ex.answer}
+              {ex.usedFallback && <span className={styles.opsFallbackTag}> (fallback summary — AI unavailable)</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className={styles.statCard}>
@@ -590,7 +942,17 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function RecCard({ icon, label, value, sub }: { icon: string; label: string; value: string; sub: string }) {
+function RecCard({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+}) {
   return (
     <div className={styles.recCard}>
       <span className={styles.recIcon}>{icon}</span>

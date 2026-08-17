@@ -41,6 +41,9 @@ function fixture(overrides: {
         capacityKg: 20000,
         currentNodeId: "GATE",
         lastSyncedAt: new Date(),
+        movementTargetNodeId: null,
+        movementStartedAt: null,
+        movementArrivesAt: null,
       },
       score: overrides.equipmentScore ?? 1,
       factors: {

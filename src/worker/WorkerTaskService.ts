@@ -1,5 +1,9 @@
 import { prisma } from "@/domain/db";
-import type { Task } from "@/domain/types";
+import { Prisma } from "@/generated/prisma/client";
+import { eventBus } from "@/events/InProcessEventBus";
+import { TOPICS } from "@/events/topics";
+import { ACTIVE_TASK_STATUSES } from "@/domain/constants";
+import type { Equipment, Task } from "@/domain/types";
 
 /**
  * Carries an APPROVED task through dispatch and worker confirmation to
@@ -10,34 +14,57 @@ import type { Task } from "@/domain/types";
  * queries elsewhere in optimization/twin/approval.
  */
 export class WorkerTaskService {
+  /**
+   * Finding an AVAILABLE worker and claiming them has to happen inside one
+   * atomic transaction, not as a read followed by a separate write — two
+   * concurrent dispatch() calls that both read the same available worker
+   * before either commits would otherwise double-assign that worker to two
+   * different tasks. SQLite serializes concurrent write transactions, so
+   * doing the read+claim inside a single interactive transaction closes
+   * that window.
+   */
   async dispatch(taskId: string, actor: string): Promise<Task> {
-    const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
-    if (task.status !== "APPROVED") {
-      throw new Error(`Task ${taskId} must be APPROVED to dispatch (was ${task.status}).`);
-    }
+    return prisma.$transaction(async (tx) => {
+      const task = await tx.task.findUniqueOrThrow({ where: { id: taskId } });
+      if (task.status !== "APPROVED") {
+        throw new Error(`Task ${taskId} must be APPROVED to dispatch (was ${task.status}).`);
+      }
 
-    const worker = await prisma.worker.findFirst({ where: { status: "AVAILABLE" } });
-    if (!worker) {
-      throw new Error("No available worker to dispatch this task to.");
-    }
+      const worker = await tx.worker.findFirst({ where: { status: "AVAILABLE" } });
+      if (!worker) {
+        throw new Error("No available worker to dispatch this task to.");
+      }
 
-    const [updatedTask] = await prisma.$transaction([
-      prisma.task.update({
+      const updatedTask = await tx.task.update({
         where: { id: taskId },
         data: { status: "DISPATCHED", assignedWorkerId: worker.id },
-      }),
-      prisma.worker.update({ where: { id: worker.id }, data: { status: "BUSY" } }),
-      prisma.auditEvent.create({
+      });
+      await tx.worker.update({ where: { id: worker.id }, data: { status: "BUSY" } });
+      // Equipment must be claimed here too, symmetrically with the worker
+      // above — otherwise it stays AVAILABLE for the entire time it's
+      // actually out on this task (confirmRetrieval frees it back to
+      // AVAILABLE, so without this it never gets marked busy in the first
+      // place).
+      if (task.assignedEquipmentId) {
+        await tx.equipment.update({ where: { id: task.assignedEquipmentId }, data: { status: "BUSY" } });
+      }
+      await tx.auditEvent.create({
         data: {
           taskId,
           action: "DISPATCHED",
           actor,
           detailsJson: JSON.stringify({ workerId: worker.id }),
         },
-      }),
-    ]);
+      });
 
-    return updatedTask;
+      return updatedTask;
+    }).then((updatedTask) => {
+      eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
+      if (updatedTask.assignedEquipmentId) {
+        eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId: updatedTask.assignedEquipmentId });
+      }
+      return updatedTask;
+    });
   }
 
   async startTask(taskId: string, workerId: string): Promise<Task> {
@@ -58,6 +85,7 @@ export class WorkerTaskService {
         },
       }),
     ]);
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
 
     return updatedTask;
   }
@@ -77,18 +105,35 @@ export class WorkerTaskService {
       throw new Error(`Task ${taskId} must be DISPATCHED or IN_PROGRESS to confirm (was ${task.status}).`);
     }
 
-    const [updatedTask] = await prisma.$transaction([
+    const ops: Prisma.PrismaPromise<unknown>[] = [
       prisma.task.update({ where: { id: taskId }, data: { status: "RETRIEVED" } }),
       prisma.container.update({
         where: { id: task.containerId },
         data: { status: "RETRIEVED", retrievalEligible: false },
       }),
       prisma.worker.update({ where: { id: workerId }, data: { status: "AVAILABLE" } }),
+    ];
+    // Equipment was claimed for this task's duration; free it back to
+    // AVAILABLE now that the retrieval is confirmed, same as the worker
+    // above. A task in DISPATCHED/IN_PROGRESS always has an assigned
+    // equipment (set when the plan was created), but the FK is nullable
+    // in the schema, so guard rather than assume.
+    if (task.assignedEquipmentId) {
+      ops.push(
+        prisma.equipment.update({ where: { id: task.assignedEquipmentId }, data: { status: "AVAILABLE" } }),
+      );
+    }
+    ops.push(
       prisma.auditEvent.create({
         data: { taskId, action: "WORKER_CONFIRMED", actor: workerId, detailsJson: "{}" },
       }),
-    ]);
+    );
 
+    const [updatedTask] = (await prisma.$transaction(ops)) as [Task, ...unknown[]];
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
+    if (task.assignedEquipmentId) {
+      eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId: task.assignedEquipmentId });
+    }
     return updatedTask;
   }
 
@@ -109,8 +154,42 @@ export class WorkerTaskService {
         },
       }),
     ]);
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: updatedTask.status });
 
     return updatedTask;
+  }
+
+  /**
+   * Frees equipment stuck in BUSY with no active task actually claiming it
+   * — the Apply action for the Container Management Agent's
+   * FREE_STUCK_EQUIPMENT suggestion (src/agent-monitor/AgentAlertService.ts).
+   * Re-checks the condition at apply time (not just at detection time) to
+   * guard against a race where some other task claimed the equipment in
+   * between.
+   */
+  async releaseEquipment(equipmentId: string, actor: string): Promise<Equipment> {
+    const claimingTask = await prisma.task.findFirst({
+      where: { assignedEquipmentId: equipmentId, status: { in: [...ACTIVE_TASK_STATUSES] } },
+    });
+    if (claimingTask) {
+      throw new Error(
+        `Cannot release equipment ${equipmentId}: task ${claimingTask.id} is actively using it (status ${claimingTask.status}).`,
+      );
+    }
+
+    const equipment = await prisma.equipment.update({
+      where: { id: equipmentId },
+      data: { status: "AVAILABLE" },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        action: "STATUS_CHANGED",
+        actor,
+        detailsJson: JSON.stringify({ field: "equipment.status", equipmentId, to: "AVAILABLE" }),
+      },
+    });
+    eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId });
+    return equipment;
   }
 
   /** The single active task a worker's mobile view should show, if any. */

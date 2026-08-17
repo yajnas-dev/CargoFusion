@@ -70,4 +70,48 @@ describe("A* over the yard graph", () => {
     const graph = new YardGraph(squareYardState());
     expect(findPath(graph, "N1", "DOES-NOT-EXIST")).toBeNull();
   });
+
+  it("finds the correct shortest path across a larger grid (heap-based open set at scale)", () => {
+    // 6x6 grid, unit-spaced, all lanes distance 10 — regression coverage for
+    // the MinHeap swap: correctness shouldn't change just because the open
+    // set is now a heap with lazy-deletion instead of a linear scan.
+    const size = 6;
+    const nodes = [];
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        nodes.push({ id: `G${x}-${y}`, blockId: null, x, y });
+      }
+    }
+    const lanes = [];
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (x < size - 1) {
+          lanes.push({
+            id: `L-${x}-${y}-h`,
+            fromNodeId: `G${x}-${y}`,
+            toNodeId: `G${x + 1}-${y}`,
+            distanceMeters: 10,
+            blocked: false,
+            congestionWeight: 1,
+          });
+        }
+        if (y < size - 1) {
+          lanes.push({
+            id: `L-${x}-${y}-v`,
+            fromNodeId: `G${x}-${y}`,
+            toNodeId: `G${x}-${y + 1}`,
+            distanceMeters: 10,
+            blocked: false,
+            congestionWeight: 1,
+          });
+        }
+      }
+    }
+    const graph = new YardGraph({ blocks: [], nodes, lanes, syncedAt: new Date().toISOString() });
+
+    const result = findPath(graph, "G0-0", `G${size - 1}-${size - 1}`);
+    // Manhattan distance in a unit grid with unit edge cost: 2*(size-1) hops.
+    expect(result?.path).toHaveLength(2 * (size - 1) + 1);
+    expect(result?.distanceMeters).toBe(2 * (size - 1) * 10);
+  });
 });

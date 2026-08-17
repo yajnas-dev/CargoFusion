@@ -39,18 +39,18 @@ enum Priority {
 // TOS-synced cache. ACSA never writes to this table's source data — only overwrites
 // its local copy on sync, per report section 9.
 model Container {
-  id                 String          @id // e.g. "MSKU1234567"
-  block              String
-  row                Int
-  bay                Int
-  tier               Int
-  status             ContainerStatus @default(IN_YARD)
-  priority           Priority        @default(MEDIUM)
-  type               ContainerType   @default(DRY)
-  weightKg           Int
-  destination        String
-  retrievalEligible  Boolean         @default(true)
-  lastSyncedAt       DateTime        @default(now())
+  id                String          @id // e.g. "MSKU1234567"
+  block             String
+  row               Int
+  bay               Int
+  tier              Int
+  status            ContainerStatus @default(IN_YARD)
+  priority          Priority        @default(MEDIUM)
+  type              ContainerType   @default(DRY)
+  weightKg          Int
+  destination       String
+  retrievalEligible Boolean         @default(true)
+  lastSyncedAt      DateTime        @default(now())
 
   tasks Task[]
 
@@ -71,37 +71,45 @@ enum EquipmentStatus {
 
 // TOS-synced cache, consumed by the Equipment Allocation agent (report section 8.1).
 model Equipment {
-  id             String          @id
-  type           EquipmentType
-  status         EquipmentStatus @default(AVAILABLE)
-  capacityKg     Int
-  currentNodeId  String
-  currentNode    YardNode        @relation(fields: [currentNodeId], references: [id])
-  lastSyncedAt   DateTime        @default(now())
+  id            String          @id
+  type          EquipmentType
+  status        EquipmentStatus @default(AVAILABLE)
+  capacityKg    Int
+  currentNodeId String
+  currentNode   YardNode        @relation(fields: [currentNodeId], references: [id])
+  lastSyncedAt  DateTime        @default(now())
 
-  tasks          Task[]
+  // In-progress movement, modeling real travel time instead of an instant
+  // position update (src/domain/equipmentMovement.ts resolves these once
+  // movementArrivesAt passes). currentNodeId stays the last *confirmed*
+  // position — the source of truth for routing/allocation — until then.
+  movementTargetNodeId String?
+  movementStartedAt    DateTime?
+  movementArrivesAt    DateTime?
+
+  tasks Task[]
 
   @@index([status, type])
 }
 
 // Populated from the TOS's yard/stowage plan; forms the yard graph for A* (Phase 6).
 model YardBlock {
-  id    String @id
-  name  String
+  id   String @id
+  name String
 
   nodes YardNode[]
 }
 
 model YardNode {
-  id      String  @id
+  id      String     @id
   blockId String?
   block   YardBlock? @relation(fields: [blockId], references: [id])
   x       Float // for map rendering
   y       Float
 
-  equipment    Equipment[]
-  lanesFrom    YardLane[]  @relation("LaneFrom")
-  lanesTo      YardLane[]  @relation("LaneTo")
+  equipment Equipment[]
+  lanesFrom YardLane[]  @relation("LaneFrom")
+  lanesTo   YardLane[]  @relation("LaneTo")
 }
 
 // Edges of the yard graph; congestionWeight and blocked are mutated by the
@@ -132,6 +140,29 @@ model Worker {
   status WorkerStatus @default(AVAILABLE)
 
   tasks Task[]
+  user  User?
+}
+
+enum UserRole {
+  OPERATOR
+  SUPERVISOR
+  WORKER
+}
+
+// Auth identity. Sessions are stateless signed JWTs in an httpOnly cookie
+// (src/auth/session.ts), not DB-backed — no Account/Session tables needed
+// for a single-provider email+password login.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  workerId     String?  @unique
+  worker       Worker?  @relation(fields: [workerId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([role])
 }
 
 enum TaskStatus {
@@ -147,21 +178,26 @@ enum TaskStatus {
 
 // ACSA-owned; has no TOS equivalent (report section 6.3).
 model Task {
-  id                String     @id @default(cuid())
-  containerId       String
-  container         Container  @relation(fields: [containerId], references: [id])
-  status            TaskStatus @default(REQUESTED)
-  priority          Priority   @default(MEDIUM)
-  requestedBy       String
+  id                     String     @id @default(cuid())
+  containerId            String
+  container              Container  @relation(fields: [containerId], references: [id])
+  status                 TaskStatus @default(REQUESTED)
+  priority               Priority   @default(MEDIUM)
+  requestedBy            String
   naturalLanguageRequest String?
+  // Optional deadline (Port Operations Roadmap Phase 3: SLA/Deadline
+  // Awareness) — set at request time; slaBreach detector flags tasks
+  // still short of DISPATCHED as this approaches or passes.
+  dueBy                  DateTime?
 
   assignedEquipmentId String?
-  assignedEquipment    Equipment? @relation(fields: [assignedEquipmentId], references: [id])
-  assignedWorkerId     String?
-  assignedWorker       Worker?    @relation(fields: [assignedWorkerId], references: [id])
+  assignedEquipment   Equipment? @relation(fields: [assignedEquipmentId], references: [id])
+  assignedWorkerId    String?
+  assignedWorker      Worker?    @relation(fields: [assignedWorkerId], references: [id])
 
   recommendations Recommendation[]
   auditEvents     AuditEvent[]
+  agentAlerts     AgentAlert[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -178,18 +214,18 @@ enum ConfidenceLevel {
 
 // One plan proposed for a task; see report sections 8 (Decision agent) and 13 (policy gate).
 model Recommendation {
-  id               String          @id @default(cuid())
-  taskId           String
-  task             Task            @relation(fields: [taskId], references: [id])
+  id     String @id @default(cuid())
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id])
 
-  routeJson        String // serialized path (node ids), distance, ETA
-  equipmentId      String
-  confidence       Float // 0-1, transparent composite score
-  confidenceLevel  ConfidenceLevel
+  routeJson             String // serialized path (node ids), distance, ETA
+  equipmentId           String
+  confidence            Float // 0-1, transparent composite score
+  confidenceLevel       ConfidenceLevel
   confidenceFactorsJson String // factor breakdown shown to the supervisor
-  explanation      String // Claude-generated human-readable explanation
-  twinValidated    Boolean
-  twinIssuesJson   String? // conflicts found during digital-twin validation, if any
+  explanation           String // Gemini-generated human-readable explanation
+  twinValidated         Boolean
+  twinIssuesJson        String? // conflicts found during digital-twin validation, if any
 
   createdAt DateTime @default(now())
 
@@ -205,21 +241,146 @@ enum AuditAction {
   DISPATCHED
   WORKER_CONFIRMED
   STATUS_CHANGED
+  AGENT_ALERT_RAISED
+  AGENT_ALERT_APPLIED
+  AGENT_ALERT_DISMISSED
+  INCIDENT_REPORTED
+  INCIDENT_RESOLVED
 }
 
 // Immutable log, per report section 14 (audit of every access decision and
 // section 12 (override capture: who/why/original vs. new decision/timestamp).
 model AuditEvent {
-  id          String      @id @default(cuid())
-  taskId      String?
-  task        Task?       @relation(fields: [taskId], references: [id])
-  action      AuditAction
-  actor       String // user id/role, or "system" for agent-initiated events
-  detailsJson String // freeform structured detail (e.g. override reason, prior vs new decision)
-  createdAt   DateTime    @default(now())
+  id           String      @id @default(cuid())
+  taskId       String?
+  task         Task?       @relation(fields: [taskId], references: [id])
+  agentAlertId String?
+  agentAlert   AgentAlert? @relation(fields: [agentAlertId], references: [id])
+  action       AuditAction
+  actor        String // user id/role, "system", or "agent:container-management-agent"
+  detailsJson  String // freeform structured detail (e.g. override reason, prior vs new decision)
+  createdAt    DateTime    @default(now())
 
   @@index([taskId])
   @@index([action])
+  @@index([agentAlertId])
+}
+
+enum AgentAlertType {
+  BLOCKED_LANE_IMPACT
+  AGING_TASK
+  IDLE_EQUIPMENT_BACKLOG
+  CONGESTION_HOTSPOT
+  EQUIPMENT_TASK_MISMATCH
+  URGENT_CONTAINER_UNACTIONED
+  UNCLAIMED_PRIORITY_CONTAINER
+  SLA_AT_RISK
+}
+
+enum AgentAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  APPLIED
+  DISMISSED
+}
+
+enum SuggestedActionType {
+  UNBLOCK_LANE
+  REASSIGN_EQUIPMENT
+  REPRIORITIZE_TASK
+  FREE_STUCK_EQUIPMENT
+  INITIATE_RETRIEVAL
+  ESCALATE_TO_SUPERVISOR
+}
+
+// Raised by the Container Management Agent (src/agent-monitor/). Never
+// executes anything itself — every APPLIED transition is a human clicking
+// Apply, which calls the same deterministic service method a human would
+// use manually (see src/agent-monitor/AgentAlertService.ts).
+model AgentAlert {
+  id                         String              @id @default(cuid())
+  type                       AgentAlertType
+  status                     AgentAlertStatus    @default(OPEN)
+  severity                   Priority // reuses the existing LOW/MEDIUM/HIGH/URGENT enum
+  taskId                     String?
+  task                       Task?               @relation(fields: [taskId], references: [id])
+  dedupeKey                  String // stable per-condition key so re-detection doesn't spam duplicates
+  subjectJson                String // detector-specific structured facts (laneId, equipmentId, etc.)
+  suggestedActionType        SuggestedActionType
+  suggestedActionPayloadJson String // exact params Apply passes to the mapped service call
+  rankScore                  Float?
+  explanation                String // LLM-authored (or fallback-template) explanation
+  detectedAt                 DateTime            @default(now())
+  resolvedAt                 DateTime?
+  resolvedBy                 String? // authenticated actor's email
+  resolutionNoteJson         String?
+  auditEvents                AuditEvent[]
+
+  @@index([status])
+  @@index([type])
+  @@index([taskId])
+  @@index([dedupeKey, status])
+}
+
+enum IncidentType {
+  EQUIPMENT_OFFLINE
+  LANE_BLOCKED
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+// A real disruption with a lifecycle — equipment failure/lane blockage were
+// previously just a status flip (Equipment.status / YardLane.blocked) with
+// no cause, duration, or resolution record (Port Operations Roadmap Phase
+// 2). Reporting/resolving an incident still goes through the same
+// underlying mutation (DemoControls.setEquipmentStatus / blockLane /
+// unblockLane) — this model adds the record on top, it doesn't replace the
+// state fields those services already maintain.
+model Incident {
+  id                 String         @id @default(cuid())
+  type               IncidentType
+  subjectId          String // equipmentId or laneId depending on type
+  status             IncidentStatus @default(OPEN)
+  cause              String?
+  reportedBy         String
+  startedAt          DateTime       @default(now())
+  resolvedAt         DateTime?
+  resolvedBy         String?
+  resolutionNoteJson String?
+
+  @@index([status])
+  @@index([type])
+  @@index([subjectId])
+}
+
+// Persists what MockTOSAdapter.writeRecommendation() sends "back to the
+// TOS" — previously an in-memory array, lost on every restart.
+model TosWriteBackLog {
+  id               String   @id @default(cuid())
+  recommendationId String
+  taskId           String?
+  payloadJson      String
+  writtenAt        DateTime @default(now())
+
+  @@index([recommendationId])
+}
+
+// Periodic point-in-time congestion readings per lane (Port Operations
+// Roadmap Phase 3: Congestion Trend Snapshot) — didn't exist before this;
+// YardLane.congestionWeight only ever held the current value, nothing
+// historical to extrapolate a trend from. Recorded once per Container
+// Management Agent cycle (src/agent-monitor/ContainerManagementAgent.ts),
+// not tied to the demo/simulation background drift.
+model CongestionSnapshot {
+  id               String   @id @default(cuid())
+  laneId           String
+  congestionWeight Float
+  recordedAt       DateTime @default(now())
+
+  @@index([laneId, recordedAt])
 }
 
 enum SensorEventType {

@@ -1,7 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { simulationEngine } from "@/simulation/SimulationEngine";
+import { requireSessionUser, requireRole } from "@/auth/requireSessionUser";
+import { errorResponse } from "@/app/api/errorResponse";
 
-export async function POST() {
-  simulationEngine.stop();
-  return NextResponse.json({ running: simulationEngine.isRunning() });
+export async function POST(req: NextRequest) {
+  try {
+    const session = await requireSessionUser(req);
+    requireRole(session, "SUPERVISOR", "OPERATOR");
+    simulationEngine.stop();
+    return NextResponse.json({ running: simulationEngine.isRunning() });
+  } catch (err) {
+    return errorResponse(err);
+  }
 }

@@ -2,10 +2,7 @@ import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import type { Equipment, EquipmentType, Priority } from "@/domain/types";
 import { RouteOptimizationService } from "@/optimization/RouteOptimizationService";
 import { prisma } from "@/domain/db";
-
-// A task assigned to equipment but not yet finished still counts as load on
-// that resource, even if the Equipment row itself is momentarily AVAILABLE.
-const ACTIVE_TASK_STATUSES = ["APPROVED", "DISPATCHED", "IN_PROGRESS"] as const;
+import { ACTIVE_TASK_STATUSES } from "@/domain/constants";
 
 // Distances beyond this are treated as "far" for scoring purposes (a whole
 // yard traversal); not a hard cutoff, just normalizes the distance score.

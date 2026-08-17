@@ -92,4 +92,39 @@ describe("EquipmentAllocationService (against the real seeded data)", () => {
     expect(scored!.factors.activeTaskCount).toBeGreaterThanOrEqual(1);
     expect(scored!.factors.workloadScore).toBeLessThan(1);
   });
+
+  it("counts a PLANNED (not-yet-approved) task as workload too", async () => {
+    // A PLANNED task already names this equipment in its own recommendation
+    // even though a supervisor hasn't approved it yet — it should still
+    // suppress this equipment from being handed out to a second concurrent
+    // request as if it were fully free.
+    const truck = await prisma.equipment.findFirst({
+      where: { type: "YARD_TRUCK", status: "AVAILABLE" },
+    });
+    const container = await prisma.container.findFirst();
+    expect(truck).not.toBeNull();
+    expect(container).not.toBeNull();
+
+    const task = await prisma.task.create({
+      data: {
+        containerId: container!.id,
+        requestedBy: "test-user",
+        status: "PLANNED",
+        assignedEquipmentId: truck!.id,
+      },
+    });
+    createdTaskIds.push(task.id);
+
+    const service = new EquipmentAllocationService(new MockTOSAdapter());
+    const results = await service.allocate({
+      destinationNodeId: "BLOCK-A-ENTRY",
+      requiredType: "YARD_TRUCK",
+      containerWeightKg: 5000,
+      priority: "MEDIUM",
+    });
+
+    const scored = results.find((r) => r.equipment.id === truck!.id);
+    expect(scored).toBeDefined();
+    expect(scored!.factors.activeTaskCount).toBeGreaterThanOrEqual(1);
+  });
 });

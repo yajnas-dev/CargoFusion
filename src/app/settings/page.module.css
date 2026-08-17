@@ -1,0 +1,146 @@
+.shell {
+  min-height: 100vh;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 28px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbar h1 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.backLink {
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.body {
+  padding: 20px 28px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+}
+
+.panel {
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-md);
+  padding: 17px 19px;
+  background: var(--ops-panel-bg);
+}
+
+.panel h2 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.profileList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.profileList dt {
+  font-family: var(--ops-font-display);
+  color: var(--ops-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.profileList dd {
+  font-family: var(--ops-font-data);
+  font-weight: 500;
+}
+
+.hint {
+  font-size: 0.78rem;
+  color: var(--ops-muted);
+  line-height: 1.5;
+}
+
+.inlineLink {
+  color: var(--ops-accent);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--ops-font-display);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ops-muted);
+}
+
+.textInput {
+  padding: 9px 11px;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-family: var(--ops-font-body);
+  font-size: 0.88rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.textInput:focus {
+  border-color: var(--ops-accent);
+}
+
+.primaryButton {
+  align-self: flex-start;
+  padding: 9px 16px;
+  border: none;
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-accent);
+  color: #06222a;
+  font-family: var(--ops-font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.errorText {
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+.successText {
+  color: var(--ops-green);
+  font-size: 0.82rem;
+}

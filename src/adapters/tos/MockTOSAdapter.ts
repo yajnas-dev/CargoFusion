@@ -1,4 +1,5 @@
 import { prisma } from "@/domain/db";
+import { resolveArrivedEquipmentMovements } from "@/domain/equipmentMovement";
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import type {
   Container,
@@ -6,6 +7,7 @@ import type {
   YardState,
   TOSEvent,
   Recommendation,
+  TosWriteBackLog,
 } from "@/domain/types";
 
 /**
@@ -16,13 +18,6 @@ import type {
  * without callers changing.
  */
 export class MockTOSAdapter implements TOSAdapter {
-  // In-memory stand-in for a TOS gate/crane move event feed (report
-  // section 6.1's "consume event streams from the TOS if available").
-  // No persistence layer for this yet — Phase 15's simulation engine will
-  // push into a real event source later.
-  private events: TOSEvent[] = [];
-  private writtenRecommendations: Recommendation[] = [];
-
   async searchContainers(query: string): Promise<Container[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
@@ -46,6 +41,7 @@ export class MockTOSAdapter implements TOSAdapter {
   }
 
   async getEquipment(id?: string): Promise<Equipment[]> {
+    await resolveArrivedEquipmentMovements();
     if (id) {
       const found = await prisma.equipment.findUnique({ where: { id } });
       return found ? [found] : [];
@@ -62,26 +58,52 @@ export class MockTOSAdapter implements TOSAdapter {
     return { blocks, nodes, lanes, syncedAt: new Date().toISOString() };
   }
 
+  /**
+   * TOS gate/crane move event feed (report section 6.1's "consume event
+   * streams from the TOS if available"), persisted to the SensorEvent
+   * table — the same table DemoControls.triggerRfidEvent() writes to —
+   * rather than an in-memory array that would be lost on every restart.
+   */
   async getEvents(since?: string): Promise<TOSEvent[]> {
-    if (!since) return [...this.events];
-    const cutoff = new Date(since).getTime();
-    return this.events.filter((e) => new Date(e.occurredAt).getTime() >= cutoff);
+    const rows = await prisma.sensorEvent.findMany({
+      where: since ? { occurredAt: { gte: new Date(since) } } : undefined,
+      orderBy: { occurredAt: "asc" },
+    });
+    return rows.map((r) => ({
+      type: r.type,
+      subjectId: r.subjectId,
+      occurredAt: r.occurredAt.toISOString(),
+    }));
   }
 
   async writeRecommendation(recommendation: Recommendation): Promise<void> {
     // The TOS remains authoritative for master data; ACSA only ever writes
     // recommendations back (report section 6.1), never container/equipment
-    // records. Simulated here as an in-memory acknowledgment.
-    this.writtenRecommendations.push(recommendation);
+    // records. Persisted to TosWriteBackLog so "what did we tell the TOS"
+    // survives a restart, same rationale as the SensorEvent change above.
+    await prisma.tosWriteBackLog.create({
+      data: {
+        recommendationId: recommendation.id,
+        taskId: recommendation.taskId,
+        payloadJson: JSON.stringify(recommendation),
+      },
+    });
   }
 
   /** Test/demo hook: inspect what's been "written back" to the simulated TOS. */
-  getWrittenRecommendations(): readonly Recommendation[] {
-    return this.writtenRecommendations;
+  async getWrittenRecommendations(): Promise<TosWriteBackLog[]> {
+    return prisma.tosWriteBackLog.findMany({ orderBy: { writtenAt: "asc" } });
   }
 
   /** Test/demo hook: inject a synthetic TOS event (gate/crane move). */
-  emitEvent(event: TOSEvent): void {
-    this.events.push(event);
+  async emitEvent(event: TOSEvent): Promise<void> {
+    await prisma.sensorEvent.create({
+      data: {
+        type: event.type,
+        subjectId: event.subjectId,
+        payloadJson: "{}",
+        occurredAt: new Date(event.occurredAt),
+      },
+    });
   }
 }

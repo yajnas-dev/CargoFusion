@@ -1,45 +1,46 @@
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --muted: #666666;
-  --border: #dddddd;
-  --panel-bg: #ffffff;
-  --subtle-bg: #f4f4f5;
-  --accent: #2563eb;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #9a9a9a;
-    --border: #2a2a2a;
-    --panel-bg: #111111;
-    --subtle-bg: #1a1a1a;
-    --accent: #5b8def;
-  }
-}
-
 /*
- * Fixed dark "ops console" palette for the dashboard/worker app —
- * intentionally always-dark (not gated on prefers-color-scheme), the
- * same way a branded operations tool would be, rather than an
- * adaptive general-purpose page.
+ * "Night Bridge" design system — CargoFusion's ops console is modeled on
+ * ship's-bridge and VTS (vessel traffic service) control-room
+ * instrumentation, not a generic SaaS dashboard: dimmed for 24/7 use, a
+ * small vocabulary of signal colors that carry real meaning (nominal /
+ * caution / alarm), tabular monospace readouts for anything that's a
+ * number, sharp edges, no decoration that doesn't earn its place.
+ * Deliberately always-dark (not gated on prefers-color-scheme) — a
+ * branded operations tool, not an adaptive general-purpose page.
  */
 :root {
-  --ops-bg: #0b0e14;
-  --ops-sidebar-bg: #0d1117;
-  --ops-panel-bg: #131722;
-  --ops-panel-bg-alt: #171c28;
-  --ops-map-bg: #0d1117;
-  --ops-border: #232838;
-  --ops-text: #e6e8ee;
-  --ops-muted: #8b93a7;
-  --ops-accent: #5b8def;
-  --ops-accent-dim: #2f3b57;
-  --ops-green: #3fb950;
-  --ops-amber: #f5a623;
+  /* Surfaces — cool blue-black, never pure #000 */
+  --ops-bg: #090c10;
+  --ops-sidebar-bg: #0c1015;
+  --ops-panel-bg: #10151c;
+  --ops-panel-bg-alt: #161c25;
+  --ops-map-bg: #0a0e13;
+  --ops-border: #232f3b;
+
+  /* Text */
+  --ops-text: #e7edf3;
+  --ops-muted: #6b7a8d;
+
+  /* Signal accent — the one interactive/informational hue, distinct from
+     the status vocabulary below so "click this" never reads as a status. */
+  --ops-accent: #2fc7d9;
+  --ops-accent-dim: #16333a;
+
+  /* Status vocabulary — meaning only, never decoration */
+  --ops-green: #3ecf8e;
+  --ops-amber: #e8a33d;
   --ops-red: #e5484d;
+
+  /* Type system: condensed display for headers/nav/labels, plain body
+     for prose, mono for every number/id/timestamp. Variables come from
+     next/font/google in layout.tsx. */
+  --ops-font-display: var(--font-display), "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --ops-font-body: var(--font-body), "IBM Plex Sans", system-ui, sans-serif;
+  --ops-font-data: var(--font-data), "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Structure — sharp instrumentation edges, not soft SaaS rounding */
+  --ops-radius-sm: 3px;
+  --ops-radius-md: 5px;
 }
 
 html {
@@ -56,9 +57,10 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ops-text);
+  background: var(--ops-bg);
+  font-family: var(--ops-font-body);
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -74,8 +76,32 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+h1,
+h2,
+h3 {
+  font-family: var(--ops-font-display);
+  letter-spacing: 0.01em;
+}
+
+/* Numbers, ids, timestamps — anything read as instrument data — use the
+   mono face with tabular figures so columns of digits actually align. */
+.ops-data,
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ops-accent);
+  outline-offset: 1px;
+}
+
+html {
+  color-scheme: dark;
 }

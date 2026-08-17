@@ -268,3 +268,77 @@ Note for contributors: `npm run db:seed` must be run once after `npm run db:migr
 - `package.json` scripts: `dev`, `build`, `start`, `lint`, `test`, `typecheck`.
 
 Per execution rules, implementation will proceed one phase at a time with explain → implement → test → typecheck/lint → review against report → fix → update this plan → summarize → stop for approval, before moving to Phase 2.
+
+---
+
+## Post-Phase-16 rework (not covered by the numbered phases above)
+
+The phase log above ends at Phase 16 (end-to-end demo testing). Real work continued past that point without being folded back into this plan — anyone planning off this file alone would miss all of it. This section closes that gap; see [`FEATURES.md`](./FEATURES.md) for the up-to-date technical reference (it, not this file, is the current source of truth for "what exists").
+
+- **Real authentication** — `User`/session model, JWT cookie sessions (`src/auth/`), a `/login` page, and role-gated routes (`OPERATOR`/`SUPERVISOR`/`WORKER`), replacing an earlier no-auth prototype state.
+- **The event bus wired for real** — `InProcessEventBus` + SSE (`GET /api/events`) actually pushing `TASK_CHANGED`/`RECOMMENDATION_CREATED`/`YARD_LANE_CHANGED`/`YARD_EQUIPMENT_CHANGED`/`AGENT_ALERT_*` to the dashboard, `/simulation`, `/worker`, and `/agent`, replacing polling as the primary update mechanism (a longer-interval poll remains as a fallback).
+- **`RetrievalAgent` reconciled into `RetrievalRequestService`** (`src/pipeline/`) — the disconnected earlier scaffold was replaced with one real interpret → pipeline → explain entry point.
+- **The Container Management Agent** (`src/agent-monitor/`) — an entire second agent layer, not mentioned anywhere above: seven deterministic detectors, Gemini-or-fallback ranking, a persisted `AgentAlert` lifecycle, and a `/agent` control room. See `FEATURES.md`'s "Container Management Agent" section for the full description.
+- **Real-travel-time equipment movement and proactive retrieval** — `Equipment` now models in-progress movement with real transit time instead of teleporting (`src/domain/equipmentMovement.ts`), and a seventh detector (`unclaimedPriorityContainer`) proactively surfaces unrequested high-priority containers.
+
+### Port Operations Roadmap — Phase 0 & 1 (this pass)
+
+Following a operator-shift-focused roadmap review (see the plan history for "Port Operations Feature Roadmap"), the product's own `DISABLED_NAV_ITEMS` stub list was treated as the honest gap analysis it is. This pass closed the highest-value items:
+
+- **Supervisor Approval Queue** (`/tasks`) — every `REQUESTED`/`PLANNED` task in one place, sorted by priority then age, with inline approve/reject/override and a bulk high-confidence approve action. This was the single biggest gap: the dashboard's approval panel only ever showed the task tied to whatever was just searched, with no way to browse everything actually awaiting a decision.
+- **Shift-Start Overview** — clickable summary cards on the dashboard (pending approvals, aging/unactioned alerts, open alerts by severity, blocked lanes, equipment/worker availability), derived from data already being polled.
+- **Audit Trail Viewer** (`/audit`, `GET /api/audit`) — every mutating service already wrote an `AuditEvent`; nothing read them back until now.
+- **Equipment** (`/equipment`, `GET /api/equipment`) and **Workers** (`/workers`) list pages — real pages behind two of the five former `DISABLED_NAV_ITEMS` stubs, backed by existing models plus the per-equipment workload count `EquipmentAllocationService` already computed internally.
+
+Explicitly out of scope for this pass (see the roadmap's Phase 2/3): incident records, reroute/what-if assistance, the Analytics/KPI dashboard, the Operations Assistant NL agent, batch requests, and the remaining `Alerts`/`Analytics`/`Settings` nav stubs.
+
+### Port Operations Roadmap — Phase 2 (P1 items)
+
+Follow-up pass closing the remaining P1 items:
+
+- **Incident Record Model** (`Incident` schema model, `src/incidents/IncidentService.ts`, `/incidents`) — report/resolve lifecycle layered on top of the existing `DemoControls.setEquipmentStatus`/`blockLane`/`unblockLane` mutations, capturing cause/reporter/start/resolve that those alone don't track.
+- **Incident Impact & Reroute Assist** — `blockedLaneImpact` now recomputes a real alternate route (A* already excludes blocked lanes) and estimates the delay versus the original path's physical distance, surfaced on the `/agent` alert card.
+- **What-If Preview** (`src/whatif/WhatIfService.ts`) — read-only lane-block/equipment-offline impact checks, reusing the same route/impact logic as the real detectors against a locally patched (never persisted) copy of the lane list. Wired into the Incidents report form as a live preview before submitting.
+- **Analytics/KPI Dashboard** (`src/analytics/AnalyticsService.ts`, `/analytics`) — throughput, avg retrieval/queue time, task-status and request-outcome breakdowns, equipment/worker utilization, alert volume by type, incident resolution time by type. Every metric traces to a real column; deliberately does not report a "replanning frequency" metric since the pipeline's internal retry attempts aren't persisted anywhere.
+- **Global Notification Surface** (`src/app/GlobalAlertBar.tsx`) — mounted in the root layout, shows on every page except `/login`; scoped to URGENT open agent alerts and open incidents only, so it doesn't duplicate the page-local badges everything else already has.
+
+Still out of scope: batch/multi-container requests, and the remaining `Alerts`/`Settings` nav stubs.
+
+### Port Operations Roadmap — Phase 3 (remaining P1/P2 items)
+
+- **Operations Assistant** (`src/agents/OperationsAssistant.ts`, `src/agents/opsSnapshot.ts`) — free-text Q&A grounded in a small live snapshot, same trust boundary as `PlanExplainer`/`AlertRanker`; deferred from Phase 2 into this pass. Dashboard's "Ask Operations" panel.
+- **SLA/Deadline Awareness** — `Task.dueBy` (optional, set at request time via the dashboard's retrieval-request form) + a new `slaBreach` detector, same shape as `agingTask` but keyed to an explicit deadline; suggests bumping priority to URGENT when that's a real fix, escalates when it isn't.
+- **Worker App Queue/History** — `GET /api/workers/[id]/history`, a "Recent" list on `/worker`. No real multi-task *queue* exists under the current one-worker-per-dispatch model, so history was the meaningful addition.
+- **Training/Validation Scenario Library** (`src/simulation/scenarios.ts`) — six named `DemoControls` compositions, plus the one real gap it exposed: `DemoControls.setWorkerStatus()` didn't exist yet.
+- **Congestion Trend Snapshot** (`src/analytics/CongestionTrendService.ts`) — new `CongestionSnapshot` model, recorded once per Container Management Agent cycle; a linear-extrapolation projection, explicitly not a forecast model.
+
+### Port Operations Roadmap — Batch/Multi-Container Requests (deferred item, closed out)
+
+`RetrievalRequestService.submitBatch()` loops the existing single-request `submit()` per line rather than extending `RequestInterpreter`/`InterpretedRequest` to parse multiple containers out of one sentence — deliberately, to avoid touching the well-tested single-container interpretation core for a capability that's really about handling request *volume* (a pasted manifest, several containers for one outbound truck), not about parsing "and" inside a sentence. `POST /api/retrieval-requests/batch`, a "Batch (multiple)" toggle on the dashboard.
+
+### Port Operations Roadmap — Phase 4 (closed out on explicit request)
+
+Originally deferred pending evidence operators wanted them; built anyway on direct instruction rather than left speculative:
+
+- **Settings** (`/settings`) — read-only profile + a real change-password flow (`AuthService.changePassword`, re-proves the current password; `POST /api/auth/change-password`). Agent thresholds intentionally stay on `/agent` next to the monitor they configure, rather than being duplicated here.
+- **Shift Timeline** (`/history`, "historical replay") — scoped honestly to what the data actually supports: a scrubbable/playable replay of the real `AuditEvent` sequence over a selected window, not a fabricated reconstruction of yard/equipment state at a point in time (no periodic full-state snapshot exists for that — only `CongestionSnapshot`, and only for lanes). `GET /api/audit` gained `since`/`until`/`order=asc`.
+
+Still out of scope: the `Alerts` nav stub (a unified cross-page alert list beyond the existing Global Notification Surface + `/agent`) — judged redundant with what already exists, not a real gap.
+
+### A second self-inflicted test-pollution lesson (see the first, above)
+
+While building this phase, `CongestionTrendService.test.ts` cleaned up by `recordedAt >= testStartedAt`, but two of its own test cases deliberately *backdate* rows (e.g. "10 minutes ago" relative to the individual test's own run time) to exercise the trend math — which can predate `testStartedAt` and slip past that filter. Fixed by tracking exact lane ids touched per test and deleting by id instead of by time window. Generalizable lesson: a cleanup filter keyed to "when the suite started" doesn't cover data a test deliberately assigns a timestamp in the past.
+
+Separately, mid-phase, a full `npm test` run produced 24 failures in `WorkerTaskService.test.ts` that vanished when the file was run alone — `vitest`'s default file parallelism racing multiple files against the same `findFirst()`-selected container row (already documented above as a known characteristic of this suite, not fixed here). Confirmed via direct `dev.db` inspection before treating it as a regression.
+
+### Known pre-existing issue found during this pass
+
+`dev.db` is a long-lived, non-reset local database — not a fresh fixture per test run. Agent-monitor and e2e tests that grab "the first available X" can fail or time out depending on how much state has accumulated in it, confirmed by direct inspection of `dev.db` rather than a defect in the code under test — including, during this Phase 2 pass, a self-inflicted case where manual `curl` smoke-testing left an uncommitted `Task` for the same container `WorkerTaskService.test.ts`'s `approvedTask()` helper always grabs via `findFirst`, cascading into 22 additional failures until it was cleaned up. Worth a follow-up (either a disposable test database, or an explicit reset step before `npm test`) but out of scope for this pass. In the meantime: clean up any state created by manual API testing before treating a test run as a baseline.
+
+### Update: the "flaky" AlertRanker test was also a real product bug — now fixed
+
+The `ContainerManagementAgent.test.ts` "uses AlertRanker" test failure, blamed on `dev.db` candidate-ordering throughout Phases 0–4 above, turned out to have a second, real cause once a user reported "the agent isn't working as intended" against the live app: `AlertRanker.rank()` only ever produced a `RankedAlert` for a candidate if Gemini's JSON response explicitly included an entry for it — any candidate the model's response left out was **silently dropped**, never raised as an alert at all. Confirmed directly: with `dev.db` at the time holding 62 real detector candidates (mostly `EQUIPMENT_TASK_MISMATCH` from accumulated test-suite runs leaving equipment stuck `BUSY`), a real Gemini call only ranked a subset — everything else would have vanished silently on a real (non-fallback) ranking pass, not just in the test's deliberately-narrow `FakeModel`.
+
+Fixed in `AlertRanker.rank()`: any candidate the model's response doesn't cover is now filled in via `fallbackRank()` rather than dropped — the AI can still rank/explain what it covers, but coverage gaps degrade to the deterministic path per-candidate instead of losing data. Added an isolated, index-controlled test in `AlertRanker.test.ts` proving this directly, and relaxed `ContainerManagementAgent.test.ts`'s over-specific assertions (which depended on the target candidate landing at whatever index the test's `FakeModel` covers) to what actually matters: the candidate is always raised. Result: **191/191 tests pass**, including this one, for the first time — the `dev.db`-ordering theory was real but incomplete; this was the other half.
+
+Also cleaned up the specific `dev.db` pollution that surfaced this (46 equipment + 5 workers stuck `BUSY` with no active-task claim, 85 stale open `AgentAlert` rows, 10 duplicate stuck-`REQUESTED` tasks) — all confirmed orphaned via direct query before deleting, not guessed.

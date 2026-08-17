@@ -1,0 +1,172 @@
+.shell {
+  min-height: 100vh;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 28px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.backLink {
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.countBadge {
+  padding: 2px 9px;
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-family: var(--ops-font-data);
+  font-size: 0.75rem;
+  color: var(--ops-muted);
+}
+
+.filters {
+  display: flex;
+  gap: 6px;
+}
+
+.filterButton {
+  padding: 6px 12px;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-muted);
+  font-family: var(--ops-font-display);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.filterButtonActive {
+  background: var(--ops-accent-dim);
+  border-color: var(--ops-accent);
+  color: var(--ops-text);
+  font-weight: 600;
+}
+
+.errorBar {
+  padding: 8px 28px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+.body {
+  padding: 20px 28px 60px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-md);
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--ops-border);
+}
+
+.idCell,
+.table td {
+  font-family: var(--ops-font-data);
+}
+
+.typeCell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ops-muted);
+}
+
+.table th {
+  font-family: var(--ops-font-display);
+  color: var(--ops-muted);
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--ops-panel-bg-alt);
+}
+
+.table tbody tr:hover {
+  background: var(--ops-panel-bg-alt);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.statusBadge {
+  padding: 2px 8px;
+  border-radius: var(--ops-radius-sm);
+  border: 1px solid var(--ops-border);
+  font-family: var(--ops-font-display);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.statusAVAILABLE {
+  color: var(--ops-green);
+  border-color: rgba(62, 207, 142, 0.35);
+}
+
+.statusBUSY {
+  color: var(--ops-amber);
+  border-color: rgba(232, 163, 61, 0.35);
+}
+
+.statusOFFLINE,
+.statusOFF_SHIFT {
+  color: var(--ops-muted);
+}
+
+.transitTag {
+  margin-left: 6px;
+  font-family: var(--ops-font-display);
+  font-size: 0.66rem;
+  color: var(--ops-accent);
+}
+
+.nodeId {
+  color: var(--ops-muted);
+  font-size: 0.75rem;
+}
+
+.overloadedCount {
+  color: var(--ops-red);
+  font-weight: 700;
+}

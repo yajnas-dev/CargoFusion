@@ -1,7 +1,11 @@
 import type { TOSAdapter } from "@/adapters/tos/TOSAdapter";
 import { RetrievalPlanningPipeline, type RetrievalPlanResult } from "@/pipeline/RetrievalPlanningPipeline";
+import { RouteOptimizationService } from "@/optimization/RouteOptimizationService";
+import { DigitalTwin } from "@/twin/DigitalTwin";
 import { ConfidenceGate, isReadyPlan, type ConfidenceAssessment } from "@/policy/ConfidenceGate";
 import { prisma } from "@/domain/db";
+import { eventBus } from "@/events/InProcessEventBus";
+import { TOPICS } from "@/events/topics";
 import type { EquipmentType, Priority, Task, Recommendation } from "@/domain/types";
 
 export interface SubmitRequestInput {
@@ -10,6 +14,7 @@ export interface SubmitRequestInput {
   priority: Priority;
   requiredEquipmentType?: EquipmentType;
   naturalLanguageRequest?: string;
+  dueBy?: Date;
 }
 
 export interface SubmitRequestResult {
@@ -33,10 +38,14 @@ export interface OverrideDecision {
  */
 export class SupervisorApprovalService {
   private readonly pipeline: RetrievalPlanningPipeline;
+  private readonly routes: RouteOptimizationService;
+  private readonly twin: DigitalTwin;
   private readonly gate = new ConfidenceGate();
 
   constructor(private readonly tos: TOSAdapter) {
     this.pipeline = new RetrievalPlanningPipeline(tos);
+    this.routes = new RouteOptimizationService(tos);
+    this.twin = new DigitalTwin(tos);
   }
 
   async submitRequest(input: SubmitRequestInput): Promise<SubmitRequestResult> {
@@ -64,6 +73,7 @@ export class SupervisorApprovalService {
         naturalLanguageRequest: input.naturalLanguageRequest,
         status: planResult.status === "READY" ? "PLANNED" : "REQUESTED",
         assignedEquipmentId: planResult.selectedEquipment?.equipment.id,
+        dueBy: input.dueBy,
       },
     });
 
@@ -75,6 +85,7 @@ export class SupervisorApprovalService {
         detailsJson: JSON.stringify({ containerQuery: input.containerQuery, status: planResult.status }),
       },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId: task.id, status: task.status });
 
     if (!isReadyPlan(planResult)) {
       return { planResult, task };
@@ -104,11 +115,17 @@ export class SupervisorApprovalService {
         detailsJson: JSON.stringify({ recommendationId: recommendation.id, confidenceLevel: confidence.level }),
       },
     });
+    eventBus.publish(TOPICS.RECOMMENDATION_CREATED, { taskId: task.id, recommendationId: recommendation.id });
 
     return { planResult, task, recommendation, confidence };
   }
 
   async approve(taskId: string, actor: string): Promise<Task> {
+    const current = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+    if (current.status !== "PLANNED") {
+      throw new Error(`Task ${taskId} must be PLANNED to approve (was ${current.status}).`);
+    }
+
     const task = await prisma.task.update({
       where: { id: taskId },
       data: { status: "APPROVED" },
@@ -116,10 +133,16 @@ export class SupervisorApprovalService {
     await prisma.auditEvent.create({
       data: { taskId, action: "APPROVED", actor, detailsJson: "{}" },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
     return task;
   }
 
   async reject(taskId: string, actor: string, reason: string): Promise<Task> {
+    const current = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+    if (current.status !== "PLANNED" && current.status !== "REQUESTED") {
+      throw new Error(`Task ${taskId} must be PLANNED or REQUESTED to reject (was ${current.status}).`);
+    }
+
     const task = await prisma.task.update({
       where: { id: taskId },
       data: { status: "REJECTED" },
@@ -127,6 +150,34 @@ export class SupervisorApprovalService {
     await prisma.auditEvent.create({
       data: { taskId, action: "REJECTED", actor, detailsJson: JSON.stringify({ reason }) },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
+    return task;
+  }
+
+  /**
+   * Updates a task's priority outside the normal request flow — the Apply
+   * action for the Container Management Agent's REPRIORITIZE_TASK
+   * suggestion (src/agent-monitor/AgentAlertService.ts), but a plain
+   * supervisor action in its own right, so it's exposed as a first-class
+   * method rather than something only the agent can reach.
+   */
+  async reprioritize(taskId: string, actor: string, newPriority: Priority): Promise<Task> {
+    const current = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+    if (current.priority === newPriority) return current;
+
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data: { priority: newPriority },
+    });
+    await prisma.auditEvent.create({
+      data: {
+        taskId,
+        action: "STATUS_CHANGED",
+        actor,
+        detailsJson: JSON.stringify({ field: "priority", from: current.priority, to: newPriority }),
+      },
+    });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
     return task;
   }
 
@@ -143,6 +194,20 @@ export class SupervisorApprovalService {
       }),
       prisma.task.findUniqueOrThrow({ where: { id: taskId } }),
     ]);
+    // REQUESTED is included alongside PLANNED/APPROVED so this also covers
+    // the Container Management Agent's REASSIGN_EQUIPMENT suggestion
+    // (src/agent-monitor/AgentAlertService.ts): a task can sit at
+    // REQUESTED with no recommendation at all when the original plan hit
+    // NO_EQUIPMENT/NO_ROUTE/NEEDS_ESCALATION — `originalRecommendation`
+    // being null is already handled below (report section 12's
+    // who/why/original-vs-new capture just records null for "original").
+    if (currentTask.status !== "PLANNED" && currentTask.status !== "APPROVED" && currentTask.status !== "REQUESTED") {
+      throw new Error(`Task ${taskId} must be REQUESTED, PLANNED, or APPROVED to override (was ${currentTask.status}).`);
+    }
+
+    if (newDecision.equipmentId) {
+      await this.assertEquipmentUsable(taskId, currentTask.containerId, newDecision.equipmentId);
+    }
 
     const task = await prisma.task.update({
       where: { id: taskId },
@@ -171,7 +236,49 @@ export class SupervisorApprovalService {
         }),
       },
     });
+    eventBus.publish(TOPICS.TASK_CHANGED, { taskId, status: task.status });
 
     return task;
+  }
+
+  /**
+   * Overriding to a specific equipment id previously skipped digital-twin
+   * validation entirely — a supervisor could override to equipment that's
+   * offline, already double-booked, or unreachable from the container's
+   * block, and it would be persisted anyway. Re-runs the same route +
+   * twin check the pipeline runs for a fresh recommendation, excluding
+   * this task's own reservation (`taskId`) so the check only flags a
+   * *different* task already holding the new equipment.
+   */
+  private async assertEquipmentUsable(taskId: string, containerId: string, equipmentId: string): Promise<void> {
+    const container = await this.tos.getContainer(containerId);
+    if (!container) {
+      throw new Error(`Cannot override task ${taskId}: container ${containerId} is not in the synced cache.`);
+    }
+
+    const [equipment] = await this.tos.getEquipment(equipmentId);
+    if (!equipment) {
+      throw new Error(`Cannot override to equipment ${equipmentId}: not in the synced cache.`);
+    }
+
+    const destinationNodeId = `BLOCK-${container.block}-ENTRY`;
+    const route = await this.routes.computeRoute(equipment.currentNodeId, destinationNodeId);
+    if (!route) {
+      throw new Error(
+        `Cannot override to equipment ${equipmentId}: no route from its current location to block ${container.block}.`,
+      );
+    }
+
+    const validation = await this.twin.validatePlan({
+      taskId,
+      containerId,
+      equipmentId,
+      routeNodeIds: route.path,
+    });
+    if (validation.recommendedAction !== "PROCEED") {
+      throw new Error(
+        `Cannot override to equipment ${equipmentId}: ${validation.issues.map((i) => i.message).join("; ")}`,
+      );
+    }
   }
 }

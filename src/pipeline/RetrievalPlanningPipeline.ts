@@ -36,6 +36,11 @@ export interface RetrievalPlanResult {
   container?: Container;
   equipmentCandidates?: EquipmentScore[];
   selectedEquipment?: EquipmentScore;
+  // Cranes that could service this container's block, ranked same as
+  // equipmentCandidates. Populated whenever the primary allocation isn't
+  // already for a crane (undefined = not computed, e.g. NOT_FOUND/AMBIGUOUS
+  // before a block is even known; [] = computed but none available).
+  craneCandidates?: EquipmentScore[];
   route?: Route;
   twin?: ValidationResult;
 }
@@ -77,6 +82,21 @@ export class RetrievalPlanningPipeline {
     const destinationNodeId = `BLOCK-${container.block}-ENTRY`;
     const requiredType = request.requiredEquipmentType ?? DEFAULT_EQUIPMENT_TYPE;
 
+    // The requested equipment (typically a yard truck) moves the container,
+    // but a crane is also needed at the block to load/unload it. Look that
+    // up separately so the plan can name it even though the request wasn't
+    // "for" a crane. Skip it when the request already targets a crane
+    // directly — equipmentCandidates below already covers that case.
+    const craneCandidates =
+      requiredType === "CRANE"
+        ? undefined
+        : await this.allocation.allocate({
+            destinationNodeId,
+            requiredType: "CRANE",
+            containerWeightKg: container.weightKg,
+            priority: request.priority,
+          });
+
     const equipmentCandidates = await this.allocation.allocate({
       destinationNodeId,
       requiredType,
@@ -90,6 +110,7 @@ export class RetrievalPlanningPipeline {
         containerMatches: searchResult.matches,
         container,
         equipmentCandidates,
+        craneCandidates,
       };
     }
 
@@ -99,6 +120,7 @@ export class RetrievalPlanningPipeline {
       container,
       destinationNodeId,
       equipmentCandidates,
+      craneCandidates,
     );
   }
 
@@ -120,6 +142,7 @@ export class RetrievalPlanningPipeline {
     container: Container,
     destinationNodeId: string,
     equipmentCandidates: EquipmentScore[],
+    craneCandidates: EquipmentScore[] | undefined,
   ): Promise<RetrievalPlanResult> {
     let lastRoute: Route | undefined;
     let lastTwin: ValidationResult | undefined;
@@ -154,6 +177,7 @@ export class RetrievalPlanningPipeline {
           container,
           equipmentCandidates,
           selectedEquipment: candidate,
+          craneCandidates,
           route,
           twin,
         };
@@ -168,6 +192,7 @@ export class RetrievalPlanningPipeline {
         containerMatches,
         container,
         equipmentCandidates,
+        craneCandidates,
       };
     }
 
@@ -178,6 +203,7 @@ export class RetrievalPlanningPipeline {
       container,
       equipmentCandidates,
       selectedEquipment: lastCandidate,
+      craneCandidates,
       route: lastRoute,
       twin: lastTwin,
     };

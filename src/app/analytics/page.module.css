@@ -1,0 +1,336 @@
+.shell {
+  min-height: 100vh;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 28px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.backLink {
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.windowPicker {
+  display: flex;
+  gap: 6px;
+}
+
+.windowButton {
+  padding: 6px 12px;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-muted);
+  font-family: var(--ops-font-display);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.windowButtonActive {
+  background: var(--ops-accent-dim);
+  border-color: var(--ops-accent);
+  color: var(--ops-text);
+  font-weight: 600;
+}
+
+.errorBar {
+  padding: 8px 28px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+.body {
+  padding: 20px 28px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Stat tiles */
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.statTile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 15px;
+  border-radius: var(--ops-radius-md);
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+}
+
+.statLabel {
+  font-family: var(--ops-font-display);
+  font-size: 0.68rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statValue {
+  font-family: var(--ops-font-data);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.statSub {
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+}
+
+.incidentStatRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+/* Panels */
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-md);
+  padding: 17px 19px;
+  background: var(--ops-panel-bg);
+}
+
+.panel h2 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.emptyState {
+  color: var(--ops-muted);
+  font-size: 0.82rem;
+}
+
+/* Magnitude bars */
+
+.barList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 140px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.barLabel {
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barTrack {
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ops-panel-bg-alt);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 2px;
+  min-width: 3px;
+}
+
+.toneNeutral {
+  background: var(--ops-accent);
+}
+
+.tonegood {
+  background: var(--ops-green);
+}
+
+.tonewarning {
+  background: var(--ops-amber);
+}
+
+.tonecritical {
+  background: var(--ops-red);
+}
+
+.barValue {
+  font-family: var(--ops-font-data);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Utilization meter */
+
+.meterBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meterHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.meterTotal {
+  font-family: var(--ops-font-data);
+  color: var(--ops-muted);
+}
+
+.meterTrack {
+  display: flex;
+  height: 16px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--ops-panel-bg-alt);
+  gap: 2px;
+}
+
+.meterSegAvailable {
+  background: var(--ops-green);
+}
+
+.meterSegBusy {
+  background: var(--ops-amber);
+}
+
+.meterSegOffline {
+  background: var(--ops-muted);
+}
+
+.meterLegend {
+  display: flex;
+  gap: 14px;
+  font-family: var(--ops-font-data);
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+}
+
+.meterLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dotAvailable,
+.dotBusy,
+.dotOffline {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.dotAvailable {
+  background: var(--ops-green);
+}
+
+.dotBusy {
+  background: var(--ops-amber);
+}
+
+.dotOffline {
+  background: var(--ops-muted);
+}
+
+.meterFootnote {
+  font-size: 0.72rem;
+  color: var(--ops-muted);
+}
+
+/* Congestion trend */
+
+.trendCaveat {
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.trendTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.trendTable th,
+.trendTable td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--ops-border);
+}
+
+.trendTable td {
+  font-family: var(--ops-font-data);
+}
+
+.trendTable th {
+  font-family: var(--ops-font-display);
+  color: var(--ops-muted);
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trendUp {
+  color: var(--ops-amber);
+  font-weight: 600;
+}
+
+.trendDown {
+  color: var(--ops-green);
+  font-weight: 600;
+}

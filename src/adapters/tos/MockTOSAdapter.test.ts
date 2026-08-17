@@ -1,9 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
 import { prisma } from "@/domain/db";
 import type { Recommendation } from "@/domain/types";
 
 describe("MockTOSAdapter", () => {
+  const createdSensorEventSubjectIds: string[] = [];
+  const createdWriteBackRecommendationIds: string[] = [];
+
+  afterEach(async () => {
+    if (createdSensorEventSubjectIds.length > 0) {
+      await prisma.sensorEvent.deleteMany({ where: { subjectId: { in: createdSensorEventSubjectIds } } });
+      createdSensorEventSubjectIds.length = 0;
+    }
+    if (createdWriteBackRecommendationIds.length > 0) {
+      await prisma.tosWriteBackLog.deleteMany({
+        where: { recommendationId: { in: createdWriteBackRecommendationIds } },
+      });
+      createdWriteBackRecommendationIds.length = 0;
+    }
+  });
+
   it("finds a container by exact id and returns null for unknown ids", async () => {
     const adapter = new MockTOSAdapter();
     const sample = await prisma.container.findFirst();
@@ -58,32 +74,46 @@ describe("MockTOSAdapter", () => {
     expect(state.syncedAt).toBeTruthy();
   });
 
-  it("emitEvent/getEvents round-trips and filters by `since`", async () => {
+  it("emitEvent/getEvents round-trips and filters by `since`, persisted to SensorEvent", async () => {
     const adapter = new MockTOSAdapter();
-    adapter.emitEvent({
-      type: "GATE_MOVE",
-      subjectId: "TEST-CONTAINER",
+    createdSensorEventSubjectIds.push("TEST-CONTAINER-MTA", "TEST-EQUIPMENT-MTA");
+
+    await adapter.emitEvent({
+      type: "RFID_CHECKPOINT",
+      subjectId: "TEST-CONTAINER-MTA",
       occurredAt: "2026-01-01T00:00:00.000Z",
     });
-    adapter.emitEvent({
-      type: "CRANE_MOVE",
-      subjectId: "TEST-EQUIPMENT",
+    await adapter.emitEvent({
+      type: "CRANE_TELEMETRY",
+      subjectId: "TEST-EQUIPMENT-MTA",
       occurredAt: "2026-06-01T00:00:00.000Z",
     });
 
-    const all = await adapter.getEvents();
+    const all = (await adapter.getEvents()).filter((e) =>
+      createdSensorEventSubjectIds.includes(e.subjectId),
+    );
     expect(all).toHaveLength(2);
 
-    const recentOnly = await adapter.getEvents("2026-03-01T00:00:00.000Z");
+    const recentOnly = (await adapter.getEvents("2026-03-01T00:00:00.000Z")).filter((e) =>
+      createdSensorEventSubjectIds.includes(e.subjectId),
+    );
     expect(recentOnly).toHaveLength(1);
-    expect(recentOnly[0].type).toBe("CRANE_MOVE");
+    expect(recentOnly[0].type).toBe("CRANE_TELEMETRY");
+
+    // Confirms this survives independently of the adapter instance (real
+    // persistence, not an in-memory array scoped to one adapter object).
+    const secondAdapter = new MockTOSAdapter();
+    const viaFreshAdapter = (await secondAdapter.getEvents()).filter((e) =>
+      createdSensorEventSubjectIds.includes(e.subjectId),
+    );
+    expect(viaFreshAdapter).toHaveLength(2);
   });
 
-  it("writeRecommendation records what was sent to the simulated TOS", async () => {
+  it("writeRecommendation persists what was sent to the simulated TOS, surviving a fresh adapter instance", async () => {
     const adapter = new MockTOSAdapter();
     const recommendation = {
-      id: "rec-test-1",
-      taskId: "task-test-1",
+      id: "rec-test-mta-1",
+      taskId: "task-test-mta-1",
       routeJson: "[]",
       equipmentId: "TRUCK-001",
       confidence: 0.9,
@@ -94,8 +124,15 @@ describe("MockTOSAdapter", () => {
       twinIssuesJson: null,
       createdAt: new Date(),
     } satisfies Recommendation;
+    createdWriteBackRecommendationIds.push(recommendation.id);
 
     await adapter.writeRecommendation(recommendation);
-    expect(adapter.getWrittenRecommendations()).toEqual([recommendation]);
+
+    const secondAdapter = new MockTOSAdapter();
+    const written = await secondAdapter.getWrittenRecommendations();
+    const match = written.find((w) => w.recommendationId === recommendation.id);
+    expect(match).toBeDefined();
+    expect(match!.taskId).toBe(recommendation.taskId);
+    expect(JSON.parse(match!.payloadJson)).toMatchObject({ id: recommendation.id, equipmentId: "TRUCK-001" });
   });
 });

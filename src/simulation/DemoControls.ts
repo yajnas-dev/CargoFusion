@@ -1,8 +1,19 @@
 import { prisma } from "@/domain/db";
-import type { Equipment, EquipmentStatus, SensorEvent, YardLane } from "@/domain/types";
+import { eventBus } from "@/events/InProcessEventBus";
+import { TOPICS } from "@/events/topics";
+import { AVERAGE_SPEED_METERS_PER_SECOND, LANE_SCALE_METERS } from "@/domain/constants";
+import { resolveArrivedEquipmentMovements } from "@/domain/equipmentMovement";
+import { MockTOSAdapter } from "@/adapters/tos/MockTOSAdapter";
+import { RouteOptimizationService } from "@/optimization/RouteOptimizationService";
+import type { Equipment, EquipmentStatus, SensorEvent, Worker, WorkerStatus, YardLane } from "@/domain/types";
 
 const MIN_CONGESTION = 1.0;
 const MAX_CONGESTION = 3.0;
+
+// Floor so even a very short hop still reads as deliberate travel, not an
+// instant snap — real yard maneuvering (slowing, positioning) takes time
+// beyond pure transit at cruising speed.
+const MIN_TRANSIT_MS = 4000;
 
 /**
  * Explicit, operator-triggered demo actions (report section 13: "simulate
@@ -15,11 +26,15 @@ const MAX_CONGESTION = 3.0;
  */
 export class DemoControls {
   async blockLane(laneId: string): Promise<YardLane> {
-    return prisma.yardLane.update({ where: { id: laneId }, data: { blocked: true } });
+    const lane = await prisma.yardLane.update({ where: { id: laneId }, data: { blocked: true } });
+    eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId });
+    return lane;
   }
 
   async unblockLane(laneId: string): Promise<YardLane> {
-    return prisma.yardLane.update({ where: { id: laneId }, data: { blocked: false } });
+    const lane = await prisma.yardLane.update({ where: { id: laneId }, data: { blocked: false } });
+    eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId });
+    return lane;
   }
 
   async unblockAllLanes(): Promise<number> {
@@ -27,6 +42,7 @@ export class DemoControls {
       where: { blocked: true },
       data: { blocked: false },
     });
+    if (result.count > 0) eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: null });
     return result.count;
   }
 
@@ -43,7 +59,9 @@ export class DemoControls {
       : pickRandom(await prisma.yardLane.findMany());
     if (!lane) return null;
     const congestionWeight = clamp(lane.congestionWeight * multiplier, MIN_CONGESTION, MAX_CONGESTION);
-    return prisma.yardLane.update({ where: { id: lane.id }, data: { congestionWeight } });
+    const updated = await prisma.yardLane.update({ where: { id: lane.id }, data: { congestionWeight } });
+    eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: lane.id });
+    return updated;
   }
 
   /** Small random walk applied to every lane's congestion — the "ambient traffic" effect. */
@@ -58,26 +76,68 @@ export class DemoControls {
         updated++;
       }
     }
+    if (updated > 0) eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: null });
     return updated;
   }
 
   async resetCongestion(): Promise<number> {
     const result = await prisma.yardLane.updateMany({ data: { congestionWeight: MIN_CONGESTION } });
+    if (result.count > 0) eventBus.publish(TOPICS.YARD_LANE_CHANGED, { laneId: null });
     return result.count;
   }
 
+  /**
+   * Starts a timed transit toward the target node instead of teleporting —
+   * real-world digital-twin realism: travel time is distanceMeters /
+   * AVERAGE_SPEED_METERS_PER_SECOND, the same speed RouteOptimizationService
+   * quotes ETAs with. currentNodeId only updates once the transit's
+   * movementArrivesAt actually passes (resolveArrivedEquipmentMovements,
+   * called on every equipment read) — this call just sets it in motion.
+   * Equipment already mid-transit is left alone rather than redirected
+   * mid-drive; the random-equipment picker only considers idle equipment
+   * in the first place, so this mainly guards the explicit-equipmentId path.
+   */
   async moveEquipment(equipmentId?: string, nodeId?: string): Promise<Equipment | null> {
+    await resolveArrivedEquipmentMovements();
+
     const equipment = equipmentId
       ? await prisma.equipment.findUnique({ where: { id: equipmentId } })
-      : pickRandom(await prisma.equipment.findMany());
+      : pickRandom(await prisma.equipment.findMany({ where: { movementArrivesAt: null } }));
     if (!equipment) return null;
 
+    if (equipment.movementArrivesAt) {
+      return equipment; // already mid-transit — let it arrive before accepting a new order
+    }
+
     const targetNodeId = nodeId ?? (await this.randomNeighborNode(equipment.currentNodeId));
-    return prisma.equipment.update({ where: { id: equipment.id }, data: { currentNodeId: targetNodeId } });
+    if (targetNodeId === equipment.currentNodeId) return equipment; // isolated node — nowhere to go
+
+    const distanceMeters = await this.distanceBetween(equipment.currentNodeId, targetNodeId);
+    const durationMs = Math.max(MIN_TRANSIT_MS, (distanceMeters / AVERAGE_SPEED_METERS_PER_SECOND) * 1000);
+    const now = new Date();
+
+    const updated = await prisma.equipment.update({
+      where: { id: equipment.id },
+      data: {
+        movementTargetNodeId: targetNodeId,
+        movementStartedAt: now,
+        movementArrivesAt: new Date(now.getTime() + durationMs),
+      },
+    });
+    eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId: equipment.id });
+    return updated;
+  }
+
+  /** Real path distance (not just straight-line) so a multi-hop explicit-node move gets a realistic duration too. */
+  private async distanceBetween(fromNodeId: string, toNodeId: string): Promise<number> {
+    const route = await new RouteOptimizationService(new MockTOSAdapter()).computeRoute(fromNodeId, toNodeId);
+    return route?.distanceMeters ?? LANE_SCALE_METERS;
   }
 
   async setEquipmentStatus(equipmentId: string, status: EquipmentStatus): Promise<Equipment> {
-    return prisma.equipment.update({ where: { id: equipmentId }, data: { status } });
+    const updated = await prisma.equipment.update({ where: { id: equipmentId }, data: { status } });
+    eventBus.publish(TOPICS.YARD_EQUIPMENT_CHANGED, { equipmentId });
+    return updated;
   }
 
   /** Toggles a random non-BUSY equipment between AVAILABLE and OFFLINE. */
@@ -91,13 +151,29 @@ export class DemoControls {
     return this.setEquipmentStatus(equipment.id, nextStatus);
   }
 
+  /**
+   * Sets a specific worker's status directly — used by the "worker
+   * shortage" training scenario (src/simulation/scenarios.ts). Doesn't
+   * touch a worker currently BUSY on an active task; that's a dispatch
+   * conflict, not a shift-status change.
+   */
+  async setWorkerStatus(workerId: string, status: WorkerStatus): Promise<Worker> {
+    const worker = await prisma.worker.findUniqueOrThrow({ where: { id: workerId } });
+    if (worker.status === "BUSY") {
+      throw new Error(`Cannot change status of worker ${workerId}: currently BUSY on an active task.`);
+    }
+    const updated = await prisma.worker.update({ where: { id: workerId }, data: { status } });
+    eventBus.publish(TOPICS.WORKER_CHANGED, { workerId });
+    return updated;
+  }
+
   async triggerRfidEvent(containerId?: string): Promise<SensorEvent | null> {
     const container = containerId
       ? await prisma.container.findUnique({ where: { id: containerId } })
       : pickRandom(await prisma.container.findMany({ take: 200 }));
     if (!container) return null;
 
-    return prisma.sensorEvent.create({
+    const event = await prisma.sensorEvent.create({
       data: {
         type: "RFID_CHECKPOINT",
         subjectId: container.id,
@@ -105,6 +181,8 @@ export class DemoControls {
         payloadJson: JSON.stringify({ simulated: true }),
       },
     });
+    eventBus.publish(TOPICS.SENSOR_EVENT, { subjectId: container.id, type: event.type });
+    return event;
   }
 
   private async randomNeighborNode(currentNodeId: string): Promise<string> {

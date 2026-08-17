@@ -140,4 +140,126 @@ describe("SupervisorApprovalService", () => {
     expect(details.newDecision.equipmentId).toBe(alternateEquipment!.id);
     expect(details.timestamp).toBeTruthy();
   });
+
+  it("override() also accepts a REQUESTED task with no prior recommendation (Container Management Agent's REASSIGN_EQUIPMENT path)", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    // Built directly rather than via submitRequest — REQUESTED tasks with
+    // no Recommendation arise from NO_EQUIPMENT/NO_ROUTE/NEEDS_ESCALATION
+    // plans, which this test doesn't need to reproduce end-to-end.
+    const task = await prisma.task.create({
+      data: { containerId: container!.id, status: "REQUESTED", priority: "MEDIUM", requestedBy: "test-operator" },
+    });
+    createdTaskIds.push(task.id);
+
+    const equipment = await prisma.equipment.findFirst({ where: { type: "YARD_TRUCK", status: "AVAILABLE" } });
+    expect(equipment).not.toBeNull();
+
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const overridden = await service.override(task.id, "supervisor-2", "Equipment now available.", {
+      equipmentId: equipment!.id,
+    });
+
+    expect(overridden.status).toBe("APPROVED");
+    expect(overridden.assignedEquipmentId).toBe(equipment!.id);
+
+    const audit = await prisma.auditEvent.findFirst({ where: { taskId: task.id, action: "OVERRIDDEN" } });
+    const details = JSON.parse(audit!.detailsJson);
+    expect(details.originalRecommendation).toBeNull();
+  });
+
+  it("override() rejects a nonexistent equipment id and leaves the task unchanged", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task } = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task!.id);
+
+    await expect(
+      service.override(task!.id, "supervisor-2", "typo'd equipment id", { equipmentId: "DOES-NOT-EXIST" }),
+    ).rejects.toThrow(/not in the synced cache/);
+
+    const unchanged = await prisma.task.findUniqueOrThrow({ where: { id: task!.id } });
+    expect(unchanged.status).toBe("PLANNED");
+    expect(unchanged.assignedEquipmentId).toBe(task!.assignedEquipmentId);
+  });
+
+  it("override() rejects equipment that's already double-booked to another active task", async () => {
+    const container1 = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task: task1, recommendation: recommendation1 } = await service.submitRequest({
+      containerQuery: container1!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task1!.id);
+
+    const container2 = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD", id: { not: container1!.id } },
+    });
+    const { task: task2 } = await service.submitRequest({
+      containerQuery: container2!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task2!.id);
+
+    // task2 tries to override onto the equipment task1's recommendation
+    // already committed to (task1 is still PLANNED, an ACTIVE_TASK_STATUS).
+    await expect(
+      service.override(task2!.id, "supervisor-2", "steal task1's equipment", {
+        equipmentId: recommendation1!.equipmentId,
+      }),
+    ).rejects.toThrow(/already committed to task/);
+
+    const unchanged = await prisma.task.findUniqueOrThrow({ where: { id: task2!.id } });
+    expect(unchanged.status).toBe("PLANNED");
+  });
+
+  it("rejects approve()/reject()/override() on a task outside their valid status", async () => {
+    const container = await prisma.container.findFirst({
+      where: { retrievalEligible: true, status: "IN_YARD" },
+    });
+    const service = new SupervisorApprovalService(new MockTOSAdapter());
+    const { task } = await service.submitRequest({
+      containerQuery: container!.id,
+      requestedBy: "test-operator",
+      priority: "MEDIUM",
+    });
+    createdTaskIds.push(task!.id);
+
+    // PLANNED -> APPROVED -> REJECTED is not a legal path, but drive the
+    // task there anyway to get it out of PLANNED for this test.
+    await service.approve(task!.id, "supervisor-1");
+
+    // Now APPROVED: re-approving (already past PLANNED) must be rejected.
+    await expect(service.approve(task!.id, "supervisor-1")).rejects.toThrow(/must be PLANNED/);
+
+    // APPROVED is still a legal override target (equipment can be swapped before dispatch).
+    const alternateEquipment = await prisma.equipment.findFirst({
+      where: { type: "YARD_TRUCK", status: "AVAILABLE" },
+    });
+    await service.override(task!.id, "supervisor-2", "swap before dispatch", {
+      equipmentId: alternateEquipment!.id,
+    });
+
+    // Force the task to a terminal state, then confirm every guarded action rejects it.
+    await prisma.task.update({ where: { id: task!.id }, data: { status: "COMPLETED" } });
+
+    await expect(service.approve(task!.id, "supervisor-1")).rejects.toThrow(/must be PLANNED/);
+    await expect(service.reject(task!.id, "supervisor-1", "too late")).rejects.toThrow(
+      /must be PLANNED or REQUESTED/,
+    );
+    await expect(
+      service.override(task!.id, "supervisor-1", "too late", { equipmentId: alternateEquipment!.id }),
+    ).rejects.toThrow(/must be REQUESTED, PLANNED, or APPROVED/);
+  });
 });

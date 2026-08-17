@@ -1,0 +1,340 @@
+.shell {
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--ops-bg);
+  color: var(--ops-text);
+  overflow: hidden;
+}
+
+/* Topbar */
+
+.topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbarLeft h1 {
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.backLink {
+  font-family: var(--ops-font-display);
+  font-size: 0.82rem;
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ops-border);
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg-alt);
+  border: 1px solid var(--ops-border);
+  font-family: var(--ops-font-display);
+  font-size: 0.7rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.liveBadgeOn {
+  color: var(--ops-green);
+  border-color: rgba(62, 207, 142, 0.35);
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.liveBadgeOn .liveDot {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(62, 207, 142, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(62, 207, 142, 0);
+  }
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--ops-muted);
+}
+
+.blockedBadge {
+  padding: 3px 10px;
+  border-radius: var(--ops-radius-sm);
+  background: rgba(229, 72, 77, 0.15);
+  color: var(--ops-red);
+  font-family: var(--ops-font-data);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.clock {
+  font-family: var(--ops-font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.workerLink {
+  font-family: var(--ops-font-display);
+  color: var(--ops-accent);
+  white-space: nowrap;
+}
+
+.errorBar {
+  flex-shrink: 0;
+  padding: 8px 22px;
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--ops-red);
+  font-size: 0.82rem;
+}
+
+/* Body: map + controls, fills the rest of the viewport */
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.mapArea {
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
+  display: flex;
+}
+
+.mapFill {
+  flex: 1;
+}
+
+.loading {
+  margin: auto;
+  color: var(--ops-muted);
+}
+
+.controls {
+  width: 370px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--ops-border);
+  background: var(--ops-sidebar-bg);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (max-width: 900px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .controls {
+    width: auto;
+    border-left: none;
+    border-top: 1px solid var(--ops-border);
+  }
+}
+
+/* Stat grid */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.miniStat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg);
+  border: 1px solid var(--ops-border);
+}
+
+.miniStatLabel {
+  font-family: var(--ops-font-display);
+  font-size: 0.64rem;
+  color: var(--ops-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.miniStatValue {
+  font-family: var(--ops-font-data);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.miniStatValueRed {
+  color: var(--ops-red);
+}
+
+/* Sections */
+
+.section {
+  padding-top: 16px;
+  border-top: 1px solid var(--ops-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section h2 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.sectionHint {
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+  line-height: 1.45;
+  margin-top: -4px;
+}
+
+.laneRow {
+  display: flex;
+  gap: 8px;
+}
+
+.select {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-map-bg);
+  color: var(--ops-text);
+  font-size: 0.82rem;
+}
+
+.select:focus {
+  border-color: var(--ops-accent);
+}
+
+.actionGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actionButton {
+  padding: 9px 14px;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-text);
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.actionButton:hover {
+  border-color: var(--ops-accent);
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scenarioList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scenarioButton {
+  padding: 9px 14px;
+  border: 1px solid var(--ops-border);
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg-alt);
+  color: var(--ops-text);
+  font-family: var(--ops-font-display);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.scenarioButton:hover {
+  border-color: var(--ops-accent);
+}
+
+.scenarioButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scenarioResult {
+  font-size: 0.76rem;
+  color: var(--ops-muted);
+  padding: 8px 10px;
+  border-radius: var(--ops-radius-sm);
+  background: var(--ops-panel-bg-alt);
+}
+
+.startButton,
+.stopButton {
+  padding: 9px 14px;
+  border: none;
+  border-radius: var(--ops-radius-sm);
+  font-family: var(--ops-font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.startButton {
+  background: var(--ops-green);
+  color: #042216;
+}
+
+.stopButton {
+  background: var(--ops-red);
+}
+
+.startButton:disabled,
+.stopButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
