@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { formatDuration } from "@/domain/format";
 import styles from "./page.module.css";
 
 interface DurationSummary {
@@ -49,13 +50,6 @@ async function api<T>(path: string): Promise<T> {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? `Request to ${path} failed`);
   return data as T;
-}
-
-function formatDuration(seconds: number | null): string {
-  if (seconds === null) return "—";
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  return `${(seconds / 3600).toFixed(1)}h`;
 }
 
 const OUTCOME_TONE: Record<string, "good" | "warning" | "critical"> = {

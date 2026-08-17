@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { MapEquipment, MapLane, MapNode } from "./YardMap";
 import { useLiveEvents } from "./useLiveEvents";
 import { TOPICS } from "@/events/topics";
+import { formatDuration } from "@/domain/format";
 import {
   AnchorIcon,
   BellIcon,
@@ -70,6 +71,7 @@ interface PlanResult {
   containerMatches: { container: { id: string }; confidence: number; matchType: string }[];
   equipmentCandidates?: EquipmentCandidate[];
   selectedEquipment?: EquipmentCandidate;
+  craneCandidates?: EquipmentCandidate[];
   route?: { path: string[]; distanceMeters: number; estimatedSeconds: number };
   twin?: { valid: boolean; recommendedAction: string; issues: { type: string; message: string }[] };
 }
@@ -652,10 +654,30 @@ export default function Dashboard() {
                     <RecCard
                       icon={<ClockIcon />}
                       label="Estimated Retrieval Time"
-                      value={`${Math.round(result.planResult.route.estimatedSeconds)}s`}
+                      value={formatDuration(result.planResult.route.estimatedSeconds)}
                       sub={`${result.planResult.route.distanceMeters.toFixed(0)}m · ${result.planResult.route.path.join(" → ")}`}
                     />
                   )}
+                  {result.planResult.craneCandidates &&
+                    (result.planResult.craneCandidates.length > 0 ? (
+                      <RecCard
+                        icon={<CraneIcon />}
+                        label="Crane for This Run"
+                        value={result.planResult.craneCandidates[0].equipment.id}
+                        sub={
+                          result.planResult.craneCandidates.length > 1
+                            ? `+${result.planResult.craneCandidates.length - 1} other crane(s) available · ${result.planResult.craneCandidates[0].factors.distanceMeters.toFixed(0)}m from block`
+                            : `${result.planResult.craneCandidates[0].factors.distanceMeters.toFixed(0)}m from block`
+                        }
+                      />
+                    ) : (
+                      <RecCard
+                        icon={<AlertTriangleIcon />}
+                        label="Crane for This Run"
+                        value="None available"
+                        sub="No crane is currently free to service this block"
+                      />
+                    ))}
                   {result.planResult.twin && (
                     <RecCard
                       icon={result.planResult.twin.recommendedAction === "PROCEED" ? <CheckIcon /> : <AlertTriangleIcon />}

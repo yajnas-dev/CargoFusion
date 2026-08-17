@@ -1,5 +1,6 @@
 import type { GenerativeModelClient } from "@/agents/GeminiClient";
 import type { RetrievalPlanResult } from "@/pipeline/RetrievalPlanningPipeline";
+import { formatDuration } from "@/domain/format";
 
 /**
  * Turns a deterministic pipeline result into a human-readable explanation
@@ -51,8 +52,17 @@ function buildPrompt(result: RetrievalPlanResult): string {
 
   if (result.route) {
     lines.push(
-      `Route: ${result.route.path.join(" -> ")}, ${result.route.distanceMeters.toFixed(0)}m, ETA ${Math.round(result.route.estimatedSeconds)}s.`,
+      `Route: ${result.route.path.join(" -> ")}, ${result.route.distanceMeters.toFixed(0)}m, ETA ${formatDuration(result.route.estimatedSeconds)}.`,
     );
+  }
+
+  if (result.craneCandidates && result.craneCandidates.length > 0) {
+    const crane = result.craneCandidates[0];
+    lines.push(
+      `Crane servicing the block: ${crane.equipment.id}, ${crane.factors.distanceMeters.toFixed(0)}m from the block entry.`,
+    );
+  } else if (result.craneCandidates) {
+    lines.push("No crane is currently available to service this block.");
   }
 
   if (result.twin) {
